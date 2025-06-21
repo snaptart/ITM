@@ -1,0 +1,50 @@
+RewriteEngine On
+
+# Redirect API requests to api/index.php
+RewriteCond %{REQUEST_URI} ^/itm/api
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+# Serve static files from public directory
+RewriteCond %{REQUEST_URI} !^/itm/api
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/$1 [QSA,L]
+
+# Default to index.html for SPA routing
+RewriteCond %{REQUEST_URI} !^/itm/api
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . public/index.html [L]
+
+# Security headers (if mod_headers is available)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Cache static assets (if mod_expires is available)
+<IfModule mod_expires.c>
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        ExpiresActive On
+        ExpiresDefault "access plus 1 month"
+    </FilesMatch>
+</IfModule>
+
+# Cache control headers (if mod_headers is available)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "public, immutable"
+    </FilesMatch>
+</IfModule>
+
+# Don't cache API responses
+<IfModule mod_headers.c>
+    SetEnvIf Request_URI "^/itm/api" no_cache=1
+    Header set Cache-Control "no-cache, no-store, must-revalidate" env=no_cache
+    Header set Pragma "no-cache" env=no_cache
+    Header set Expires "0" env=no_cache
+</IfModule>

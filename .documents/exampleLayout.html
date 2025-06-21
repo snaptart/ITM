@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ice Time Management - Prototype</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        #app-container {
+            display: grid;
+            grid-template-columns: var(--sidebar-width, 16rem) 1fr; /* Default sidebar width */
+            grid-template-rows: auto 1fr auto; /* Header, Main, Footer */
+            height: 100vh;
+            transition: grid-template-columns 0.3s ease-in-out;
+            background-color: #f0f4f8; /* Very light blue background, from 'Energetic & Playful' */
+        }
+        #app-container.sidebar-hidden {
+            grid-template-columns: 0 1fr;
+        }
+        #app-header, #app-footer {
+            grid-column: 1 / -1; /* Span across both sidebar and main content */
+            background-color: #2196F3; /* Brilliant Blue */
+            color: #ffffff;
+            transition: height 0.3s ease-in-out;
+            z-index: 10;
+            overflow: hidden;
+        }
+        #app-header.hidden, #app-footer.hidden {
+            height: 0 !important;
+            padding: 0 !important;
+            min-height: 0 !important;
+        }
+        #app-header {
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            min-height: 4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        #app-sidebar {
+            grid-column: 1;
+            grid-row: 2 / 3;
+            background-color: #ffffff;
+            box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            overflow-y: auto;
+            transition: width 0.3s ease-in-out;
+            width: var(--sidebar-width, 16rem);
+            flex-shrink: 0;
+            z-index: 9;
+        }
+        #app-sidebar.hidden {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #app-content {
+            grid-column: 2;
+            grid-row: 2 / 3;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background-color: #f0f4f8; /* Light background for main content */
+        }
+        #app-footer {
+            padding: 1rem 1.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+            min-height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary {
+            background-color: #4CAF50; /* Energetic Green */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #388E3C; /* Darker Green */
+        }
+        .btn-secondary {
+            background-color: #FF9800; /* Energetic Orange */
+            color: #ffffff;
+        }
+        .btn-secondary:hover {
+            background-color: #FB8C00; /* Darker Orange */
+        }
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 1.25rem;
+            margin-left: 1rem;
+            padding: 0.25rem;
+        }
+        @media (max-width: 768px) {
+            #app-container {
+                grid-template-columns: 1fr; /* Single column on mobile */
+                grid-template-rows: auto 1fr auto;
+            }
+            #app-sidebar {
+                position: fixed;
+                top: 4rem; /* Below header */
+                left: 0;
+                height: calc(100vh - 4rem);
+                width: 100%;
+                z-index: 20;
+                transform: translateX(-100%);
+                box-shadow: none;
+                padding: 1.5rem;
+                background-color: #ffffff;
+            }
+            #app-sidebar.active {
+                transform: translateX(0);
+            }
+            #app-content {
+                grid-column: 1;
+            }
+            #app-header .flex-grow {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Header -->
+        <header id="app-header" class="flex items-center justify-between px-6 py-4">
+            <div class="flex items-center">
+                <button id="toggle-sidebar-btn" class="toggle-btn text-white">☰</button>
+                <h1 class="text-2xl font-semibold text-white ml-4">Ice Time Management</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-white">Welcome, Admin User</span>
+                <button class="btn btn-secondary bg-orange-500 hover:bg-orange-600">Logout</button>
+                <button id="toggle-header-btn" class="toggle-btn text-white">▲</button>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside id="app-sidebar" class="w-64 p-6">
+            <h2 class="text-xl font-medium mb-6 text-gray-700">Navigation</h2>
+            <nav>
+                <ul class="space-y-4">
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Dashboard</a></li>
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Calendar</a></li>
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Facilities</a></li>
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Programs</a></li>
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Users</a></li>
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Reports</a></li>
+                    <li><a href="#" class="block text-gray-700 hover:text-blue-600 hover:font-medium transition-colors">Settings</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="app-content" class="p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Welcome to Your Ice Time Dashboard</h2>
+
+            <!-- Overview Card -->
+            <div class="card grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-4xl font-bold text-blue-600">12</p>
+                    <p class="text-gray-600">Total Facilities</p>
+                </div>
+                <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-4xl font-bold text-green-600">256</p>
+                    <p class="text-gray-600">Booked Slots This Month</p>
+                </div>
+                <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-4xl font-bold text-yellow-600">$15K</p>
+                    <p class="text-gray-600">Revenue (Pending)</p>
+                </div>
+                <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-4xl font-bold text-red-600">5%</p>
+                    <p class="text-gray-600">No-Show Rate</p>
+                </div>
+            </div>
+
+            <!-- Calendar Placeholder Card -->
+            <div class="card">
+                <h3 class="text-2xl font-semibold mb-4 text-gray-800">Ice Time Calendar</h3>
+                <div class="h-96 bg-gray-100 border border-gray-300 rounded-md flex items-center justify-center text-gray-500 text-lg">
+                    FullCalendar.io Component Placeholder
+                </div>
+            </div>
+
+            <!-- Data Table Placeholder Card -->
+            <div class="card">
+                <h3 class="text-2xl font-semibold mb-4 text-gray-800">Recent Allocations</h3>
+                <div class="bg-gray-100 border border-gray-300 rounded-md p-4 flex items-center justify-center text-gray-500 text-lg h-64">
+                    Datatables.net Component Placeholder
+                </div>
+            </div>
+
+            <!-- Dynamic Form Placeholder Card -->
+            <div class="card">
+                <h3 class="text-2xl font-semibold mb-4 text-gray-800">Add New Facility (CRUD Factory Example)</h3>
+                <div class="bg-gray-100 border border-gray-300 rounded-md p-4 flex flex-col space-y-4">
+                    <input type="text" placeholder="Facility Name" class="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400">
+                    <input type="text" placeholder="Address" class="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400">
+                    <input type="email" placeholder="Contact Email" class="p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400">
+                    <button class="btn btn-primary w-full">Save Facility</button>
+                    <p class="text-sm text-gray-500 text-center">This form will be dynamically generated by the CRUD Factory.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer id="app-footer" class="px-6 py-3 bg-blue-600 text-white flex items-center justify-center">
+            <span class="text-white text-opacity-80">© 2024 Ice Time Management System. All rights reserved.</span>
+            <button id="toggle-footer-btn" class="toggle-btn text-white ml-auto">▼</button>
+        </footer>
+    </div>
+
+    <script>
+        const appContainer = document.getElementById('app-container');
+        const header = document.getElementById('app-header');
+        const sidebar = document.getElementById('app-sidebar');
+        const footer = document.getElementById('app-footer');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        const toggleHeaderBtn = document.getElementById('toggle-header-btn');
+        const toggleFooterBtn = document.getElementById('toggle-footer-btn');
+
+        // Function to set visibility and persist in localStorage
+        function setVisibility(element, isVisible, localStorageKey) {
+            if (isVisible) {
+                element.classList.remove('hidden');
+                element.style.removeProperty('height');
+                if (element.id === 'app-sidebar') {
+                    element.style.removeProperty('width');
+                    appContainer.classList.remove('sidebar-hidden');
+                }
+            } else {
+                element.classList.add('hidden');
+                // Use a fixed height for hidden elements to ensure smooth transition
+                if (element.id === 'app-header' || element.id === 'app-footer') {
+                    element.style.height = '0px';
+                } else if (element.id === 'app-sidebar') {
+                    element.style.width = '0px';
+                    appContainer.classList.add('sidebar-hidden');
+                }
+            }
+            localStorage.setItem(localStorageKey, isVisible ? 'visible' : 'hidden');
+        }
+
+        // Initialize visibility from localStorage or default to visible
+        function initializeVisibility() {
+            const headerState = localStorage.getItem('headerVisible');
+            const sidebarState = localStorage.getItem('sidebarVisible');
+            const footerState = localStorage.getItem('footerVisible');
+
+            setVisibility(header, headerState !== 'hidden', 'headerVisible');
+            setVisibility(sidebar, sidebarState !== 'hidden', 'sidebarVisible');
+            setVisibility(footer, footerState !== 'hidden', 'footerVisible');
+
+            // Handle mobile sidebar state
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active'); // Start hidden on mobile
+                toggleSidebarBtn.textContent = '☰';
+            } else {
+                if (sidebarState !== 'hidden') {
+                    sidebar.classList.remove('hidden'); // Ensure sidebar is not hidden by mobile styles
+                    appContainer.classList.remove('sidebar-hidden');
+                } else {
+                    sidebar.classList.add('hidden');
+                    appContainer.classList.add('sidebar-hidden');
+                }
+                toggleSidebarBtn.textContent = '◀'; // Desktop icon
+            }
+        }
+
+        // Toggle functions
+        toggleSidebarBtn.addEventListener('click', () => {
+            const isVisible = sidebar.classList.contains('hidden');
+            if (window.innerWidth <= 768) {
+                sidebar.classList.toggle('active');
+                toggleSidebarBtn.textContent = sidebar.classList.contains('active') ? '✖' : '☰';
+            } else {
+                setVisibility(sidebar, isVisible, 'sidebarVisible');
+                toggleSidebarBtn.textContent = isVisible ? '◀' : '▶';
+            }
+        });
+
+        toggleHeaderBtn.addEventListener('click', () => {
+            const isVisible = header.classList.contains('hidden');
+            setVisibility(header, isVisible, 'headerVisible');
+            toggleHeaderBtn.textContent = isVisible ? '▲' : '▼';
+        });
+
+        toggleFooterBtn.addEventListener('click', () => {
+            const isVisible = footer.classList.contains('hidden');
+            setVisibility(footer, isVisible, 'footerVisible');
+            toggleFooterBtn.textContent = isVisible ? '▼' : '▲';
+        });
+
+        // Re-initialize on window resize for responsive adjustments
+        window.addEventListener('resize', () => {
+            initializeVisibility();
+        });
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', initializeVisibility);
+    </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+/* Custom styles for Ice Time Management System */
+
+/* Sidebar toggle animations */
+#sidebar {
+    z-index: 40;
+}
+
+@media (max-width: 1023px) {
+    #sidebar.show {
+        transform: translateX(0);
+    }
+}
+
+/* Main content adjustments */
+#main-content {
+    transition: margin-left 0.3s ease;
+}
+
+/* Form styling enhancements */
+.form-error {
+    @apply text-red-500 text-sm mt-1;
+}
+
+.form-success {
+    @apply text-green-500 text-sm mt-1;
+}
+
+/* DataTables custom styling */
+.dataTables_wrapper {
+    @apply mt-4;
+}
+
+.dataTables_filter input {
+    @apply ml-2 px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500;
+}
+
+.dataTables_length select {
+    @apply ml-2 mr-2 px-2 py-1 border rounded focus:outline-none focus:border-blue-500;
+}
+
+/* Calendar customizations */
+.fc-header-toolbar {
+    @apply mb-4;
+}
+
+.fc-button-primary {
+    @apply bg-blue-500 border-blue-500;
+}
+
+.fc-button-primary:hover {
+    @apply bg-blue-700 border-blue-700;
+}
+
+/* Loading spinner */
+.loading-spinner {
+    @apply inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin;
+}
+
+/* Toast notifications */
+.toast {
+    @apply fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-transform duration-300;
+}
+
+.toast.success {
+    @apply bg-green-500 text-white;
+}
+
+.toast.error {
+    @apply bg-red-500 text-white;
+}
+
+.toast.info {
+    @apply bg-blue-500 text-white;
+}
+
+.toast.warning {
+    @apply bg-yellow-500 text-black;
+}
+
+/* Modal styling */
+.modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center;
+}
+
+.modal-content {
+    @apply bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-96 overflow-y-auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #header h1 {
+        @apply text-lg;
+    }
+    
+    #main-content {
+        @apply p-4;
+    }
+}
+
+/* Print styles */
+@media print {
+    #header, #sidebar, #footer {
+        display: none !important;
+    }
+    
+    #main-content {
+        @apply m-0 p-0;
+    }
+}
