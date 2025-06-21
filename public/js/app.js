@@ -2,6 +2,7 @@ class ITMApp {
     constructor() {
         this.currentUser = null;
         this.eventSource = null;
+        this.userManagement = null;
         this.init();
     }
 
@@ -348,8 +349,74 @@ class ITMApp {
         console.log('Event clicked:', event);
     }
 
-    loadContent(action) {
+    async loadContent(action) {
         console.log('Loading content for:', action);
+        
+        const dashboardContent = document.getElementById('dashboard-content');
+        
+        switch (action) {
+            case 'dashboard':
+                this.loadDashboardContent();
+                break;
+                
+            case 'users':
+                if (this.currentUser.role === 'system_admin') {
+                    dashboardContent.innerHTML = '<div class="text-center py-8">Loading user management...</div>';
+                    
+                    if (!this.userManagement) {
+                        this.userManagement = new UserManagement(this);
+                        await this.userManagement.init();
+                    }
+                    
+                    await this.userManagement.render();
+                } else {
+                    dashboardContent.innerHTML = '<div class="text-center py-8 text-red-500">Access denied. Insufficient permissions.</div>';
+                }
+                break;
+                
+            case 'facilities':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Facilities management coming soon...</div>';
+                break;
+                
+            case 'ice-surfaces':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Ice surfaces management coming soon...</div>';
+                break;
+                
+            case 'programs':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Programs management coming soon...</div>';
+                break;
+                
+            case 'ice-time-slots':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Ice time slots management coming soon...</div>';
+                break;
+                
+            case 'reports':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Reports coming soon...</div>';
+                break;
+                
+            case 'my-facility':
+                dashboardContent.innerHTML = '<div class="text-center py-8">My facility management coming soon...</div>';
+                break;
+                
+            case 'allocations':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Allocations management coming soon...</div>';
+                break;
+                
+            case 'my-allocations':
+                dashboardContent.innerHTML = '<div class="text-center py-8">My allocations coming soon...</div>';
+                break;
+                
+            case 'calendar':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Calendar view coming soon...</div>';
+                break;
+                
+            case 'confirmations':
+                dashboardContent.innerHTML = '<div class="text-center py-8">Confirmations coming soon...</div>';
+                break;
+                
+            default:
+                dashboardContent.innerHTML = '<div class="text-center py-8">Page not found.</div>';
+        }
     }
 
     setupSSE() {
@@ -405,5 +472,5 @@ class ITMApp {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new ITMApp();
+    window.app = new ITMApp();
 });

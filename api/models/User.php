@@ -191,5 +191,87 @@ class User {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row['total'];
     }
+
+    public function setEmailVerificationToken($token) {
+        $query = "UPDATE " . $this->table_name . " 
+                 SET email_verification_token = :token 
+                 WHERE id = :id";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':token', $token);
+        $stmt->bindParam(':id', $this->id);
+        
+        return $stmt->execute();
+    }
+
+    public function verifyEmailToken($token) {
+        $query = "UPDATE " . $this->table_name . " 
+                 SET email_verified = 1, email_verification_token = NULL 
+                 WHERE email_verification_token = :token AND email_verified = 0";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':token', $token);
+        
+        return $stmt->execute() && $stmt->rowCount() > 0;
+    }
+
+    public function findByVerificationToken($token) {
+        $query = "SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions 
+                 FROM " . $this->table_name . " u 
+                 LEFT JOIN roles r ON u.role_id = r.id 
+                 WHERE u.email_verification_token = :token AND u.email_verified = 0 AND u.active = 1 
+                 LIMIT 1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':token', $token);
+        $stmt->execute();
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if($row) {
+            return [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'email' => $row['email'],
+                'role_id' => $row['role_id'],
+                'role_name' => $row['role_name'],
+                'role_display_name' => $row['role_display_name'],
+                'permissions' => json_decode($row['permissions'] ?? '[]', true),
+                'email_verified' => $row['email_verified'],
+                'created_at' => $row['created_at'],
+                'updated_at' => $row['updated_at']
+            ];
+        }
+
+        return false;
+    }
+
+    public function update() {
+        $query = "UPDATE " . $this->table_name . " 
+                 SET name=:name, email=:email, role_id=:role_id, updated_at=NOW() 
+                 WHERE id=:id";
+
+        $stmt = $this->conn->prepare($query);
+
+        $this->name = htmlspecialchars(strip_tags($this->name));
+        $this->email = htmlspecialchars(strip_tags($this->email));
+        $this->role_id = intval($this->role_id);
+
+        $stmt->bindParam(":name", $this->name);
+        $stmt->bindParam(":email", $this->email);
+        $stmt->bindParam(":role_id", $this->role_id);
+        $stmt->bindParam(":id", $this->id);
+
+        return $stmt->execute();
+    }
+
+    public function delete() {
+        $query = "UPDATE " . $this->table_name . " SET active = 0, updated_at = NOW() WHERE id = :id";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $this->id);
+        
+        return $stmt->execute();
+    }
 }
 ?>

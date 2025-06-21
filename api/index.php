@@ -76,6 +76,17 @@ try {
             }
             break;
 
+        case 'verify-email':
+            if ($request_method === 'POST') {
+                require_once 'controllers/AuthController.php';
+                $controller = new AuthController($db);
+                $controller->verifyEmail();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
         case 'me':
         case 'current-user':
             if ($request_method === 'GET') {
@@ -115,6 +126,48 @@ try {
                 require_once 'controllers/SSEController.php';
                 $controller = new SSEController($db);
                 $controller->streamEvents();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'users':
+            require_once 'controllers/UserController.php';
+            $controller = new UserController($db);
+            
+            if ($request_method === 'GET' && !isset($path_parts[1])) {
+                $controller->getAll();
+            } elseif ($request_method === 'GET' && isset($path_parts[1])) {
+                $controller->getById($path_parts[1]);
+            } elseif ($request_method === 'POST') {
+                $controller->create();
+            } elseif ($request_method === 'PUT' && isset($path_parts[1])) {
+                $controller->update($path_parts[1]);
+            } elseif ($request_method === 'DELETE' && isset($path_parts[1])) {
+                $controller->delete($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'users-password':
+            if ($request_method === 'PUT' && isset($path_parts[1])) {
+                require_once 'controllers/UserController.php';
+                $controller = new UserController($db);
+                $controller->changePassword($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'roles':
+            if ($request_method === 'GET') {
+                require_once 'controllers/UserController.php';
+                $controller = new UserController($db);
+                $controller->getRoles();
             } else {
                 http_response_code(405);
                 echo json_encode(['error' => 'Method not allowed']);

@@ -11,6 +11,13 @@ define('FRONTEND_URL', 'http://localhost');
 define('EMAIL_FROM', 'noreply@icetimemanagement.com');
 define('EMAIL_FROM_NAME', 'Ice Time Management System');
 
+// SMTP Configuration (for production email sending)
+define('SMTP_HOST', 'localhost');
+define('SMTP_PORT', 587);
+define('SMTP_USERNAME', '');
+define('SMTP_PASSWORD', '');
+define('SMTP_SECURE', 'tls'); // 'tls' or 'ssl'
+
 define('TIMEZONE', 'America/Toronto');
 date_default_timezone_set(TIMEZONE);
 

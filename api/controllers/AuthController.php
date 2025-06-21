@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../includes/jwt.php';
+require_once __DIR__ . '/../services/EmailService.php';
 
 class AuthController {
     private $db;
@@ -106,11 +107,38 @@ class AuthController {
         $this->user->role_id = 4; // Default to 'public' role
 
         if ($this->user->create()) {
-            http_response_code(201);
-            echo json_encode([
-                'message' => 'User registered successfully',
-                'user_id' => $this->user->id
-            ]);
+            // Generate email verification token
+            $verification_token = bin2hex(random_bytes(32));
+            
+            // Save verification token to database
+            if ($this->user->setEmailVerificationToken($verification_token)) {
+                // Send verification email
+                $emailService = new EmailService();
+                $email_sent = $emailService->sendVerificationEmail(
+                    $this->user->email, 
+                    $this->user->name, 
+                    $verification_token
+                );
+                
+                if ($email_sent) {
+                    http_response_code(201);
+                    echo json_encode([
+                        'message' => 'User registered successfully. Please check your email to verify your account.',
+                        'user_id' => $this->user->id,
+                        'email_verification_required' => true
+                    ]);
+                } else {
+                    http_response_code(201);
+                    echo json_encode([
+                        'message' => 'User registered successfully, but verification email could not be sent. Please contact support.',
+                        'user_id' => $this->user->id,
+                        'email_verification_required' => true
+                    ]);
+                }
+            } else {
+                http_response_code(500);
+                echo json_encode(['error' => 'Registration failed - could not set verification token']);
+            }
         } else {
             http_response_code(500);
             echo json_encode(['error' => 'Registration failed']);
@@ -184,6 +212,39 @@ class AuthController {
         } else {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to generate reset token']);
+        }
+    }
+
+    public function verifyEmail() {
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        if (!isset($data['token'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Verification token is required']);
+            return;
+        }
+
+        $token = $data['token'];
+        
+        // Find user by verification token
+        $user_data = $this->user->findByVerificationToken($token);
+        
+        if (!$user_data) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid or expired verification token']);
+            return;
+        }
+
+        // Verify the email
+        if ($this->user->verifyEmailToken($token)) {
+            http_response_code(200);
+            echo json_encode([
+                'message' => 'Email verified successfully. You can now log in.',
+                'email_verified' => true
+            ]);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Email verification failed. Please try again.']);
         }
     }
 
