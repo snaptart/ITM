@@ -8,6 +8,8 @@ class CRUDFactory {
         this.permissions = config.permissions || {};
         this.dataTable = null;
         this.currentEditId = null;
+        this.isLoading = false;
+        this.requestTimeout = null;
     }
 
     async render() {
@@ -155,7 +157,10 @@ class CRUDFactory {
     }
 
     async loadData() {
+        if (this.isLoading) return;
+        
         try {
+            this.isLoading = true;
             const token = localStorage.getItem('authToken');
             const response = await fetch(this.apiEndpoint, {
                 headers: {
@@ -172,6 +177,8 @@ class CRUDFactory {
         } catch (error) {
             console.error('Error loading data:', error);
             this.showToast('Network error while loading data', 'error');
+        } finally {
+            this.isLoading = false;
         }
     }
 
@@ -303,7 +310,10 @@ class CRUDFactory {
             if (response.ok) {
                 this.showToast(result.message || `${this.config.singularName || this.entityName} ${this.currentEditId ? 'updated' : 'created'} successfully`, 'success');
                 this.closeModal();
-                await this.loadData();
+                
+                // For simplicity, reload data to ensure fresh state
+                // This avoids issues with different API response structures
+                this.loadData();
             } else {
                 this.showToast(result.error || 'Operation failed', 'error');
             }
@@ -353,7 +363,9 @@ class CRUDFactory {
 
             if (response.ok) {
                 this.showToast(result.message || `${this.config.singularName || this.entityName} deleted successfully`, 'success');
-                await this.loadData();
+                
+                // Remove single row instead of reloading all data
+                this.removeTableRow(id);
             } else {
                 this.showToast(result.error || 'Delete failed', 'error');
             }
@@ -361,6 +373,82 @@ class CRUDFactory {
             console.error('Error deleting item:', error);
             this.showToast('Network error while deleting', 'error');
         }
+    }
+
+    addTableRow(item) {
+        if (!this.dataTable) return;
+        
+        const row = this.fields.filter(f => f.listable !== false).map(field => {
+            if (field.formatter) {
+                return field.formatter(item[field.name], item);
+            }
+            return item[field.name] || '';
+        });
+
+        if (this.permissions.edit !== false || this.permissions.delete !== false) {
+            const actions = [];
+            if (this.permissions.edit !== false) {
+                actions.push(`<button class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded mr-1" onclick="window.crudInstances['${this.entityName}'].editItem(${item.id})">Edit</button>`);
+            }
+            if (this.permissions.delete !== false) {
+                actions.push(`<button class="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded" onclick="window.crudInstances['${this.entityName}'].deleteItem(${item.id})">Delete</button>`);
+            }
+            row.push(actions.join(''));
+        }
+
+        this.dataTable.row.add(row).draw();
+    }
+
+    updateTableRow(item) {
+        if (!this.dataTable) return;
+        
+        const row = this.fields.filter(f => f.listable !== false).map(field => {
+            if (field.formatter) {
+                return field.formatter(item[field.name], item);
+            }
+            return item[field.name] || '';
+        });
+
+        if (this.permissions.edit !== false || this.permissions.delete !== false) {
+            const actions = [];
+            if (this.permissions.edit !== false) {
+                actions.push(`<button class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded mr-1" onclick="window.crudInstances['${this.entityName}'].editItem(${item.id})">Edit</button>`);
+            }
+            if (this.permissions.delete !== false) {
+                actions.push(`<button class="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded" onclick="window.crudInstances['${this.entityName}'].deleteItem(${item.id})">Delete</button>`);
+            }
+            row.push(actions.join(''));
+        }
+
+        // Find and update the row with matching ID
+        this.dataTable.rows().every(function(index) {
+            const rowData = this.data();
+            const firstColumn = rowData[0];
+            
+            // Check if this row contains the item ID (assuming ID is in first column or actions)
+            if (firstColumn == item.id || rowData.join('').includes(`editItem(${item.id})`)) {
+                this.data(row).draw();
+                return false; // Stop iteration
+            }
+        });
+    }
+
+    removeTableRow(id) {
+        if (!this.dataTable) return;
+        
+        // Find and remove the row with matching ID
+        this.dataTable.rows().every(function(index) {
+            const rowData = this.data();
+            const firstColumn = rowData[0];
+            
+            // Check if this row contains the item ID
+            if (firstColumn == id || rowData.join('').includes(`editItem(${id})`)) {
+                this.remove();
+                return false; // Stop iteration
+            }
+        });
+        
+        this.dataTable.draw();
     }
 
     showToast(message, type = 'info') {

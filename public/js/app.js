@@ -421,16 +421,49 @@ class ITMApp {
 
     setupSSE() {
         const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
         this.eventSource = new EventSource(`/itm/api/events?token=${token}`);
         
         this.eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             this.handleSSEMessage(data);
+            this.sseReconnectAttempts = 0; // Reset on successful message
         };
 
         this.eventSource.onerror = (error) => {
             console.error('SSE error:', error);
+            this.handleSSEError();
         };
+        
+        this.eventSource.onopen = () => {
+            console.log('SSE connection established');
+            this.sseReconnectAttempts = 0;
+        };
+    }
+    
+    handleSSEError() {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        
+        // Exponential backoff reconnection
+        if (!this.sseReconnectAttempts) this.sseReconnectAttempts = 0;
+        this.sseReconnectAttempts++;
+        
+        if (this.sseReconnectAttempts <= 5) {
+            const delay = Math.min(1000 * Math.pow(2, this.sseReconnectAttempts), 30000);
+            console.log(`SSE reconnecting in ${delay}ms (attempt ${this.sseReconnectAttempts})`);
+            
+            setTimeout(() => {
+                if (localStorage.getItem('authToken')) {
+                    this.setupSSE();
+                }
+            }, delay);
+        } else {
+            console.error('SSE max reconnection attempts reached');
+        }
     }
 
     closeSSE() {
@@ -438,6 +471,7 @@ class ITMApp {
             this.eventSource.close();
             this.eventSource = null;
         }
+        this.sseReconnectAttempts = 0;
     }
 
     handleSSEMessage(data) {

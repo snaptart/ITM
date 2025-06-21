@@ -88,14 +88,18 @@ class UserManagement {
                     type: 'password',
                     required: true,
                     listable: false,
-                    editable: false // Only show for new users
+                    editable: true // Make editable so it appears in forms
                 },
                 {
                     name: 'email_verified',
                     label: 'Email Verified',
-                    type: 'text',
-                    editable: false,
+                    type: 'select',
+                    editable: true,
                     listable: true,
+                    options: [
+                        { value: '1', label: 'Verified' },
+                        { value: '0', label: 'Not Verified' }
+                    ],
                     formatter: (value) => value ? 
                         '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Verified</span>' : 
                         '<span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Not Verified</span>'
@@ -171,18 +175,23 @@ class UserManagement {
             
             // Show/hide password field based on whether editing or creating
             const passwordField = document.getElementById('users-password')?.closest('.mb-4');
-            if (passwordField) {
+            const passwordInput = document.getElementById('users-password');
+            
+            if (passwordField && passwordInput) {
                 if (item) {
-                    // Editing - hide password field and add change password button
+                    // Editing - hide password field, remove required attribute, and add change password button
                     passwordField.style.display = 'none';
+                    passwordInput.removeAttribute('required');
                     this.addChangePasswordButton(item);
                 } else {
-                    // Creating - show password field
+                    // Creating - show password field and ensure it's required
                     passwordField.style.display = 'block';
+                    passwordInput.setAttribute('required', 'required');
                     this.removeChangePasswordButton();
                 }
             }
         };
+
     }
 
     addChangePasswordButton(user) {

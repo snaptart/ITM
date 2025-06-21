@@ -212,6 +212,17 @@ class UserController {
             $params[':active'] = $data['active'] ? 1 : 0;
         }
 
+        if (isset($data['email_verified'])) {
+            if (!$this->hasPermission($current_user, 'user_management')) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Insufficient permissions to change email verification status']);
+                return;
+            }
+
+            $updates[] = "email_verified = :email_verified";
+            $params[':email_verified'] = $data['email_verified'] ? 1 : 0;
+        }
+
         if (empty($updates)) {
             http_response_code(400);
             echo json_encode(['error' => 'No valid fields to update']);
