@@ -74,6 +74,48 @@ class CRUDFactory {
                         </form>
                     </div>
                 </div>
+
+                <!-- Confirmation Modal -->
+                <div id="${this.entityName}-confirm-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+                        <div class="mb-4">
+                            <h3 id="${this.entityName}-confirm-title" class="text-lg font-semibold mb-2">Confirm Action</h3>
+                            <p id="${this.entityName}-confirm-message" class="text-gray-600">Are you sure?</p>
+                        </div>
+                        <div class="flex justify-end space-x-2">
+                            <button id="${this.entityName}-confirm-cancel" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                                Cancel
+                            </button>
+                            <button id="${this.entityName}-confirm-ok" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Modal -->
+                <div id="${this.entityName}-error-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                        <div class="flex items-center mb-4">
+                            <div class="flex-shrink-0">
+                                <svg class="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.732L13.732 4.268c-.77-1.064-2.694-1.064-3.464 0L3.34 16.268C2.57 17.333 3.53 19 5.072 19z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 id="${this.entityName}-error-title" class="text-lg font-semibold text-gray-900">Error</h3>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <p id="${this.entityName}-error-message" class="text-gray-600">An error occurred.</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <button id="${this.entityName}-error-ok" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -153,6 +195,32 @@ class CRUDFactory {
             if (e.target.id === `${this.entityName}-modal`) {
                 this.closeModal();
             }
+        });
+
+        // Confirmation modal event listeners
+        document.getElementById(`${this.entityName}-confirm-modal`).addEventListener('click', (e) => {
+            if (e.target.id === `${this.entityName}-confirm-modal`) {
+                this.closeConfirmModal(false);
+            }
+        });
+        
+        document.getElementById(`${this.entityName}-confirm-cancel`).addEventListener('click', () => {
+            this.closeConfirmModal(false);
+        });
+        
+        document.getElementById(`${this.entityName}-confirm-ok`).addEventListener('click', () => {
+            this.closeConfirmModal(true);
+        });
+
+        // Error modal event listeners
+        document.getElementById(`${this.entityName}-error-modal`).addEventListener('click', (e) => {
+            if (e.target.id === `${this.entityName}-error-modal`) {
+                this.closeErrorModal();
+            }
+        });
+        
+        document.getElementById(`${this.entityName}-error-ok`).addEventListener('click', () => {
+            this.closeErrorModal();
         });
     }
 
@@ -315,7 +383,12 @@ class CRUDFactory {
                 // This avoids issues with different API response structures
                 this.loadData();
             } else {
-                this.showToast(result.error || 'Operation failed', 'error');
+                // Show form validation errors as modal instead of toast
+                if (response.status >= 400 && response.status < 500) {
+                    this.showErrorModal('Form Validation Error', result.error || 'Operation failed');
+                } else {
+                    this.showToast(result.error || 'Operation failed', 'error');
+                }
             }
         } catch (error) {
             console.error('Error submitting form:', error);
@@ -346,7 +419,14 @@ class CRUDFactory {
     }
 
     async deleteItem(id) {
-        if (!confirm(`Are you sure you want to delete this ${this.config.singularName || this.entityName}?`)) {
+        const confirmed = await this.showConfirmModal(
+            'Confirm Delete',
+            `Are you sure you want to delete this ${this.config.singularName || this.entityName}? This action cannot be undone.`,
+            'Delete',
+            'Cancel'
+        );
+        
+        if (!confirmed) {
             return;
         }
 
@@ -437,8 +517,11 @@ class CRUDFactory {
         if (!this.dataTable) return;
         
         // Find and remove the row with matching ID
+        const self = this;
         this.dataTable.rows().every(function(index) {
             const rowData = this.data();
+            if (!rowData || rowData.length === 0) return true; // Continue if no data
+            
             const firstColumn = rowData[0];
             
             // Check if this row contains the item ID
@@ -451,24 +534,69 @@ class CRUDFactory {
         this.dataTable.draw();
     }
 
+    showConfirmModal(title, message, confirmText = 'OK', cancelText = 'Cancel') {
+        return new Promise((resolve) => {
+            const modal = document.getElementById(`${this.entityName}-confirm-modal`);
+            const titleEl = document.getElementById(`${this.entityName}-confirm-title`);
+            const messageEl = document.getElementById(`${this.entityName}-confirm-message`);
+            const confirmBtn = document.getElementById(`${this.entityName}-confirm-ok`);
+            const cancelBtn = document.getElementById(`${this.entityName}-confirm-cancel`);
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            confirmBtn.textContent = confirmText;
+            cancelBtn.textContent = cancelText;
+            
+            this.confirmResolve = resolve;
+            modal.classList.remove('hidden');
+        });
+    }
+
+    closeConfirmModal(result) {
+        const modal = document.getElementById(`${this.entityName}-confirm-modal`);
+        modal.classList.add('hidden');
+        
+        if (this.confirmResolve) {
+            this.confirmResolve(result);
+            this.confirmResolve = null;
+        }
+    }
+
+    showErrorModal(title, message) {
+        const modal = document.getElementById(`${this.entityName}-error-modal`);
+        const titleEl = document.getElementById(`${this.entityName}-error-title`);
+        const messageEl = document.getElementById(`${this.entityName}-error-message`);
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        modal.classList.remove('hidden');
+    }
+
+    closeErrorModal() {
+        const modal = document.getElementById(`${this.entityName}-error-modal`);
+        modal.classList.add('hidden');
+    }
+
     showToast(message, type = 'info') {
         // Use the app's toast function if available
         if (window.app && window.app.showToast) {
             window.app.showToast(message, type);
         } else {
-            // Fallback toast implementation
+            // Fallback toast implementation using existing CSS classes
             const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 px-4 py-2 rounded shadow-lg text-white z-50 ${
-                type === 'success' ? 'bg-green-500' : 
-                type === 'error' ? 'bg-red-500' : 
-                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-            }`;
+            toast.className = `toast ${type}`;
             toast.textContent = message;
             
             document.body.appendChild(toast);
             
             setTimeout(() => {
-                document.body.removeChild(toast);
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
             }, 3000);
         }
     }

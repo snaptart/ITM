@@ -107,9 +107,13 @@ class UserManagement {
                 {
                     name: 'active',
                     label: 'Status',
-                    type: 'text',
-                    editable: false,
+                    type: 'select',
+                    editable: true,
                     listable: true,
+                    options: [
+                        { value: '1', label: 'Active' },
+                        { value: '0', label: 'Inactive' }
+                    ],
                     formatter: (value) => value ? 
                         '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>' : 
                         '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Inactive</span>'

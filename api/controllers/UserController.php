@@ -118,6 +118,8 @@ class UserController {
         $this->user->email = $data['email'];
         $this->user->password_hash = $data['password'];
         $this->user->role_id = $data['role_id'];
+        $this->user->email_verified = isset($data['email_verified']) ? intval($data['email_verified']) : 0;
+        $this->user->active = isset($data['active']) ? intval($data['active']) : 1;
 
         if ($this->user->create()) {
             $user_data = $this->user->findById($this->user->id);
@@ -275,16 +277,14 @@ class UserController {
             return;
         }
 
-        $query = "UPDATE users SET active = 0, updated_at = NOW() WHERE id = :id";
-        
         try {
-            $stmt = $this->db->prepare($query);
-            if ($stmt->execute([':id' => $id])) {
+            $this->user->id = $id;
+            if ($this->user->delete()) {
                 http_response_code(200);
-                echo json_encode(['message' => 'User deactivated successfully']);
+                echo json_encode(['message' => 'User deleted successfully']);
             } else {
                 http_response_code(500);
-                echo json_encode(['error' => 'Failed to deactivate user']);
+                echo json_encode(['error' => 'Failed to delete user']);
             }
         } catch (Exception $e) {
             http_response_code(500);

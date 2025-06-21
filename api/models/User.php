@@ -24,7 +24,7 @@ class User {
 
     public function create() {
         $query = "INSERT INTO " . $this->table_name . " 
-                 SET name=:name, email=:email, password_hash=:password_hash, role_id=:role_id";
+                 SET name=:name, email=:email, password_hash=:password_hash, role_id=:role_id, email_verified=:email_verified, active=:active";
 
         $stmt = $this->conn->prepare($query);
 
@@ -32,11 +32,15 @@ class User {
         $this->email = htmlspecialchars(strip_tags($this->email));
         $this->password_hash = password_hash($this->password_hash, PASSWORD_BCRYPT, ['cost' => BCRYPT_ROUNDS]);
         $this->role_id = intval($this->role_id);
+        $this->email_verified = isset($this->email_verified) ? intval($this->email_verified) : 0;
+        $this->active = isset($this->active) ? intval($this->active) : 1;
 
         $stmt->bindParam(":name", $this->name);
         $stmt->bindParam(":email", $this->email);
         $stmt->bindParam(":password_hash", $this->password_hash);
         $stmt->bindParam(":role_id", $this->role_id);
+        $stmt->bindParam(":email_verified", $this->email_verified);
+        $stmt->bindParam(":active", $this->active);
 
         if($stmt->execute()) {
             $this->id = $this->conn->lastInsertId();
@@ -50,7 +54,7 @@ class User {
         $query = "SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions 
                  FROM " . $this->table_name . " u 
                  LEFT JOIN roles r ON u.role_id = r.id 
-                 WHERE u.email = :email AND u.active = 1 
+                 WHERE u.email = :email 
                  LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
@@ -92,7 +96,7 @@ class User {
         $query = "SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions 
                  FROM " . $this->table_name . " u 
                  LEFT JOIN roles r ON u.role_id = r.id 
-                 WHERE u.id = :id AND u.active = 1 
+                 WHERE u.id = :id 
                  LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
@@ -172,7 +176,7 @@ class User {
         $query = "SELECT u.*, r.name as role_name, r.display_name as role_display_name 
                  FROM " . $this->table_name . " u 
                  LEFT JOIN roles r ON u.role_id = r.id 
-                 WHERE u.active = 1 
+                 -- WHERE u.active = 1 
                  ORDER BY u.created_at DESC 
                  LIMIT :limit OFFSET :offset";
 
@@ -185,7 +189,7 @@ class User {
     }
 
     public function getTotalCount() {
-        $query = "SELECT COUNT(*) as total FROM " . $this->table_name . " WHERE active = 1";
+        $query = "SELECT COUNT(*) as total FROM " . $this->table_name;
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -219,7 +223,7 @@ class User {
         $query = "SELECT u.*, r.name as role_name, r.display_name as role_display_name, r.permissions 
                  FROM " . $this->table_name . " u 
                  LEFT JOIN roles r ON u.role_id = r.id 
-                 WHERE u.email_verification_token = :token AND u.email_verified = 0 AND u.active = 1 
+                 WHERE u.email_verification_token = :token AND u.email_verified = 0 
                  LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
@@ -266,7 +270,7 @@ class User {
     }
 
     public function delete() {
-        $query = "UPDATE " . $this->table_name . " SET active = 0, updated_at = NOW() WHERE id = :id";
+        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
         
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id', $this->id);
