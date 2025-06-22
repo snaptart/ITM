@@ -499,7 +499,7 @@ class ITMApp {
 
             if (response.ok) {
                 const data = await response.json();
-                const events = Array.isArray(data) ? data : (data.data || []);
+                const events = Array.isArray(data) ? data : (data.events || []);
                 
                 // Ensure we have a valid array and valid event objects
                 if (!Array.isArray(events)) {

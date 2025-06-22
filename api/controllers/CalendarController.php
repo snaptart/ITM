@@ -26,6 +26,14 @@ class CalendarController {
                 
                 // Also include available slots they might request
                 $filters['status'] = ['available', 'proposed', 'confirmed'];
+            } else {
+                // For facility administrators, automatically filter by their facilities
+                if ($current_user['role'] === 'Facility Administrator') {
+                    $facility_ids = $this->getFacilitiesForAdmin($current_user['user_id']);
+                    if (!empty($facility_ids)) {
+                        $filters['facility_ids'] = $facility_ids;
+                    }
+                }
             }
 
             // Add query filters for date range
@@ -35,8 +43,20 @@ class CalendarController {
             if (isset($_GET['end'])) {
                 $filters['date_to'] = $_GET['end'];
             }
-            if (isset($_GET['facility_id'])) {
-                $filters['facility_id'] = $_GET['facility_id'];
+            
+            // Allow manual facility_id override for system admins or when explicitly provided
+            if (isset($_GET['facility_id']) && !empty($_GET['facility_id'])) {
+                // Only allow override if user has full allocation management or if they manage this facility
+                if ($this->hasPermission($current_user, 'allocation_management') && $current_user['role'] !== 'Facility Administrator') {
+                    $filters['facility_id'] = $_GET['facility_id'];
+                } else if ($current_user['role'] === 'Facility Administrator') {
+                    $user_facility_ids = $this->getFacilitiesForAdmin($current_user['user_id']);
+                    if (in_array($_GET['facility_id'], $user_facility_ids)) {
+                        $filters['facility_id'] = $_GET['facility_id'];
+                        // Remove facility_ids filter when specific facility is selected
+                        unset($filters['facility_ids']);
+                    }
+                }
             }
 
             // Get allocations data
@@ -205,6 +225,24 @@ class CalendarController {
 
     private function hasPermission($user, $permission) {
         return in_array($permission, $user['permissions'] ?? []);
+    }
+
+    private function getFacilitiesForAdmin($user_id) {
+        try {
+            $query = "SELECT id FROM facilities WHERE facility_admin_id = :user_id AND active = 1";
+            $stmt = $this->db->prepare($query);
+            $stmt->bindParam(':user_id', $user_id);
+            $stmt->execute();
+            
+            $facility_ids = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $facility_ids[] = $row['id'];
+            }
+            
+            return $facility_ids;
+        } catch (Exception $e) {
+            return [];
+        }
     }
 }
 ?>

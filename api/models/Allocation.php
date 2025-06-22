@@ -72,6 +72,12 @@ class Allocation {
             $params[':facility_id'] = $filters['facility_id'];
         }
 
+        if (isset($filters['facility_ids']) && is_array($filters['facility_ids']) && !empty($filters['facility_ids'])) {
+            $placeholders = implode(',', array_fill(0, count($filters['facility_ids']), '?'));
+            $conditions[] = "f.id IN ($placeholders)";
+            $params = array_merge($params, $filters['facility_ids']);
+        }
+
         if (isset($filters['program_id'])) {
             $conditions[] = "a.program_id = :program_id";
             $params[':program_id'] = $filters['program_id'];
