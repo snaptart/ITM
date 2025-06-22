@@ -1098,7 +1098,10 @@ class ITMApp {
                         const script = document.createElement('script');
                         script.src = '/itm/public/js/allocation-management.js';
                         script.onload = () => {
-                            // AllocationManager will auto-initialize when the script loads
+                            // Initialize AllocationManager after script loads
+                            if (window.initializeAllocationManager) {
+                                window.initializeAllocationManager();
+                            }
                         };
                         document.head.appendChild(script);
                     } else {

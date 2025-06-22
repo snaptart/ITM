@@ -17,21 +17,30 @@ class AllocationManager {
 
     async loadReferenceData() {
         try {
+            const token = localStorage.getItem('authToken');
+            const headers = {
+                'Authorization': `Bearer ${token}`
+            };
+
             // Load programs, facilities, and ice surfaces for filters and assignments
             const [programsResponse, facilitiesResponse, surfacesResponse] = await Promise.all([
-                apiRequest('/programs'),
-                apiRequest('/facilities'),
-                apiRequest('/ice-surfaces')
+                fetch('/itm/api/programs', { headers }),
+                fetch('/itm/api/facilities', { headers }),
+                fetch('/itm/api/ice-surfaces', { headers })
             ]);
 
-            this.programs = programsResponse.data || programsResponse.programs || [];
-            this.facilities = facilitiesResponse.data || facilitiesResponse.facilities || [];
-            this.iceSurfaces = surfacesResponse.data || surfacesResponse.ice_surfaces || [];
+            const programsData = await programsResponse.json();
+            const facilitiesData = await facilitiesResponse.json();
+            const surfacesData = await surfacesResponse.json();
+
+            this.programs = programsData.data || programsData.programs || [];
+            this.facilities = facilitiesData.data || facilitiesData.facilities || [];
+            this.iceSurfaces = surfacesData.data || surfacesData.ice_surfaces || [];
 
             this.populateFilterDropdowns();
         } catch (error) {
             console.error('Error loading reference data:', error);
-            showNotification('Error loading reference data', 'error');
+            if (window.app) window.app.showToast('Error loading reference data', 'error');
         }
     }
 
@@ -214,9 +223,15 @@ class AllocationManager {
         try {
             const filters = this.getFilters();
             const queryString = new URLSearchParams(filters).toString();
-            const response = await apiRequest(`/allocations?${queryString}`);
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`/itm/api/allocations?${queryString}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             
-            const allocations = response.data || response.allocations || [];
+            const data = await response.json();
+            const allocations = data.data || data.allocations || [];
             
             this.dataTable.clear();
             this.dataTable.rows.add(allocations);
@@ -228,7 +243,7 @@ class AllocationManager {
             
         } catch (error) {
             console.error('Error loading allocations:', error);
-            showNotification('Error loading allocations', 'error');
+            if (window.app) window.app.showToast('Error loading allocations', 'error');
         }
     }
 
@@ -274,7 +289,7 @@ class AllocationManager {
 
     showBulkAssignModal() {
         if (this.selectedAllocations.size === 0) {
-            showNotification('Please select allocations to assign', 'warning');
+            if (window.app) window.app.showToast('Please select allocations to assign', 'warning');
             return;
         }
         
@@ -295,7 +310,7 @@ class AllocationManager {
         const notes = document.getElementById('bulkAssignNotes').value;
         
         if (!programId) {
-            showNotification('Please select a program', 'warning');
+            if (window.app) window.app.showToast('Please select a program', 'warning');
             return;
         }
         
@@ -307,24 +322,34 @@ class AllocationManager {
                 notes: notes || null
             };
             
-            const response = await apiRequest('/allocations-bulk-assign', 'POST', payload);
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('/itm/api/allocations-bulk-assign', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
             
-            if (response.success) {
-                showNotification(`Successfully assigned ${response.assigned_count} allocations`, 'success');
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.app) window.app.showToast(`Successfully assigned ${data.assigned_count} allocations`, 'success');
                 this.hideBulkAssignModal();
                 this.loadAllocations();
             } else {
-                showNotification('Failed to assign allocations', 'error');
+                if (window.app) window.app.showToast('Failed to assign allocations', 'error');
             }
         } catch (error) {
             console.error('Error bulk assigning:', error);
-            showNotification('Error assigning allocations', 'error');
+            if (window.app) window.app.showToast('Error assigning allocations', 'error');
         }
     }
 
     async bulkUnassign() {
         if (this.selectedAllocations.size === 0) {
-            showNotification('Please select allocations to unassign', 'warning');
+            if (window.app) window.app.showToast('Please select allocations to unassign', 'warning');
             return;
         }
         
@@ -337,17 +362,27 @@ class AllocationManager {
                 allocation_ids: Array.from(this.selectedAllocations).map(id => parseInt(id))
             };
             
-            const response = await apiRequest('/allocations-bulk-unassign', 'POST', payload);
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('/itm/api/allocations-bulk-unassign', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
             
-            if (response.success) {
-                showNotification(`Successfully unassigned ${response.unassigned_count} allocations`, 'success');
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.app) window.app.showToast(`Successfully unassigned ${data.unassigned_count} allocations`, 'success');
                 this.loadAllocations();
             } else {
-                showNotification('Failed to unassign allocations', 'error');
+                if (window.app) window.app.showToast('Failed to unassign allocations', 'error');
             }
         } catch (error) {
             console.error('Error bulk unassigning:', error);
-            showNotification('Error unassigning allocations', 'error');
+            if (window.app) window.app.showToast('Error unassigning allocations', 'error');
         }
     }
 
@@ -365,17 +400,27 @@ class AllocationManager {
                 program_id: parseInt(programId)
             };
             
-            const response = await apiRequest('/allocations-bulk-assign', 'POST', payload);
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('/itm/api/allocations-bulk-assign', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
             
-            if (response.success) {
-                showNotification('Allocation assigned successfully', 'success');
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.app) window.app.showToast('Allocation assigned successfully', 'success');
                 this.loadAllocations();
             } else {
-                showNotification('Failed to assign allocation', 'error');
+                if (window.app) window.app.showToast('Failed to assign allocation', 'error');
             }
         } catch (error) {
             console.error('Error assigning allocation:', error);
-            showNotification('Error assigning allocation', 'error');
+            if (window.app) window.app.showToast('Error assigning allocation', 'error');
         }
     }
 
@@ -389,17 +434,27 @@ class AllocationManager {
                 allocation_ids: [parseInt(allocationId)]
             };
             
-            const response = await apiRequest('/allocations-bulk-unassign', 'POST', payload);
+            const token = localStorage.getItem('authToken');
+            const response = await fetch('/itm/api/allocations-bulk-unassign', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
             
-            if (response.success) {
-                showNotification('Allocation unassigned successfully', 'success');
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.app) window.app.showToast('Allocation unassigned successfully', 'success');
                 this.loadAllocations();
             } else {
-                showNotification('Failed to unassign allocation', 'error');
+                if (window.app) window.app.showToast('Failed to unassign allocation', 'error');
             }
         } catch (error) {
             console.error('Error unassigning allocation:', error);
-            showNotification('Error unassigning allocation', 'error');
+            if (window.app) window.app.showToast('Error unassigning allocation', 'error');
         }
     }
 
@@ -418,24 +473,42 @@ class AllocationManager {
                 notes: notes !== null ? notes : allocation.notes
             };
             
-            const response = await apiRequest(`/allocations/${allocationId}`, 'PUT', payload);
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`/itm/api/allocations/${allocationId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
             
-            if (response.success) {
-                showNotification('Allocation updated successfully', 'success');
+            const data = await response.json();
+            
+            if (data.success) {
+                if (window.app) window.app.showToast('Allocation updated successfully', 'success');
                 this.loadAllocations();
             } else {
-                showNotification('Failed to update allocation', 'error');
+                if (window.app) window.app.showToast('Failed to update allocation', 'error');
             }
         } catch (error) {
             console.error('Error updating allocation:', error);
-            showNotification('Error updating allocation', 'error');
+            if (window.app) window.app.showToast('Error updating allocation', 'error');
         }
     }
 }
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    if (document.getElementById('allocationsTable')) {
+// Initialize when DOM is loaded or when called directly
+function initializeAllocationManager() {
+    if (document.getElementById('allocationsTable') && !window.allocationManager) {
         window.allocationManager = new AllocationManager();
     }
-});
+}
+
+// Only add DOMContentLoaded listener if not already initialized
+if (!window.allocationManager) {
+    document.addEventListener('DOMContentLoaded', initializeAllocationManager);
+}
+
+// Export initialization function for dynamic loading
+window.initializeAllocationManager = initializeAllocationManager;
