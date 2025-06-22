@@ -18,7 +18,11 @@ class Allocation {
         $stmt = $this->conn->prepare($query);
 
         $stmt->bindParam(":ice_time_slot_id", $data['ice_time_slot_id']);
-        $stmt->bindParam(":program_id", $data['program_id']);
+        if ($data['program_id'] === null) {
+            $stmt->bindValue(":program_id", null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindParam(":program_id", $data['program_id']);
+        }
         $stmt->bindParam(":allocation_date", $data['allocation_date']);
         $stmt->bindParam(":status", $data['status']);
         $stmt->bindParam(":allocation_type", $data['allocation_type']);

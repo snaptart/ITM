@@ -5,7 +5,6 @@ class IceTimeSlot {
 
     public $id;
     public $ice_surface_id;
-    public $day_of_week;          // Deprecated - use days_of_week instead
     public $days_of_week;         // JSON array of day numbers [0,1,2,3,4,5,6]
     public $start_time;
     public $end_time;
@@ -39,13 +38,8 @@ class IceTimeSlot {
             $this->days_of_week = json_encode($this->days_of_week);
         }
 
-        // Set legacy day_of_week for backward compatibility (first day in the array)
-        $daysArray = json_decode($this->days_of_week, true);
-        $this->day_of_week = !empty($daysArray) ? $daysArray[0] : 1;
-
         $query = "INSERT INTO " . $this->table . " 
                   SET ice_surface_id = :ice_surface_id, 
-                      day_of_week = :day_of_week, 
                       days_of_week = :days_of_week,
                       start_time = :start_time, 
                       end_time = :end_time, 
@@ -60,7 +54,6 @@ class IceTimeSlot {
         $stmt = $this->conn->prepare($query);
 
         $stmt->bindValue(':ice_surface_id', $this->ice_surface_id, PDO::PARAM_INT);
-        $stmt->bindValue(':day_of_week', $this->day_of_week, PDO::PARAM_INT);
         $stmt->bindValue(':days_of_week', $this->days_of_week);
         $stmt->bindValue(':start_time', $this->start_time);
         $stmt->bindValue(':end_time', $this->end_time);
@@ -117,8 +110,7 @@ class IceTimeSlot {
             
             $this->id = $row['id'];
             $this->ice_surface_id = $row['ice_surface_id'];
-            $this->day_of_week = $row['day_of_week'];
-            $this->days_of_week = $row['days_of_week'] ?? json_encode([(int)$row['day_of_week']]);
+            $this->days_of_week = $row['days_of_week'];
             $this->start_time = $row['start_time'];
             $this->end_time = $row['end_time'];
             $this->effective_date = $row['effective_date'];
@@ -146,7 +138,7 @@ class IceTimeSlot {
                   LEFT JOIN ice_surfaces ice ON its.ice_surface_id = ice.id
                   LEFT JOIN facilities f ON ice.facility_id = f.id
                   LEFT JOIN users u ON its.created_by = u.id
-                  ORDER BY f.name, ice.name, its.day_of_week, its.start_time 
+                  ORDER BY f.name, ice.name, its.start_time 
                   LIMIT :limit OFFSET :offset";
 
         $stmt = $this->conn->prepare($query);
@@ -178,13 +170,8 @@ class IceTimeSlot {
             $this->days_of_week = json_encode($this->days_of_week);
         }
 
-        // Set legacy day_of_week for backward compatibility (first day in the array)
-        $daysArray = json_decode($this->days_of_week, true);
-        $this->day_of_week = !empty($daysArray) ? $daysArray[0] : 1;
-
         $query = "UPDATE " . $this->table . " 
                   SET ice_surface_id = :ice_surface_id, 
-                      day_of_week = :day_of_week, 
                       days_of_week = :days_of_week,
                       start_time = :start_time, 
                       end_time = :end_time, 
@@ -200,7 +187,6 @@ class IceTimeSlot {
         $stmt = $this->conn->prepare($query);
 
         $stmt->bindValue(':ice_surface_id', $this->ice_surface_id, PDO::PARAM_INT);
-        $stmt->bindValue(':day_of_week', $this->day_of_week, PDO::PARAM_INT);
         $stmt->bindValue(':days_of_week', $this->days_of_week);
         $stmt->bindValue(':start_time', $this->start_time);
         $stmt->bindValue(':end_time', $this->end_time);
@@ -262,7 +248,7 @@ class IceTimeSlot {
                   LEFT JOIN facilities f ON ice.facility_id = f.id
                   LEFT JOIN users u ON its.created_by = u.id
                   WHERE its.ice_surface_id = :ice_surface_id 
-                  ORDER BY its.day_of_week, its.start_time";
+                  ORDER BY its.start_time";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindValue(':ice_surface_id', $ice_surface_id, PDO::PARAM_INT);
@@ -299,7 +285,7 @@ class IceTimeSlot {
                   LEFT JOIN ice_surfaces ice ON its.ice_surface_id = ice.id
                   LEFT JOIN facilities f ON ice.facility_id = f.id
                   WHERE " . implode(' AND ', $where_conditions) . "
-                  ORDER BY f.name, ice.name, its.day_of_week, its.start_time";
+                  ORDER BY f.name, ice.name, its.start_time";
 
         $stmt = $this->conn->prepare($query);
         
@@ -338,7 +324,7 @@ class IceTimeSlot {
                   LEFT JOIN facilities f ON ice.facility_id = f.id
                   LEFT JOIN users u ON its.created_by = u.id
                   WHERE " . implode(' AND ', $where_conditions) . "
-                  ORDER BY f.name, ice.name, its.day_of_week, its.start_time";
+                  ORDER BY f.name, ice.name, its.start_time";
 
         $stmt = $this->conn->prepare($query);
         
@@ -368,8 +354,8 @@ class IceTimeSlot {
         } else if (is_array($this->days_of_week)) {
             return $this->days_of_week;
         }
-        // Fallback to legacy day_of_week
-        return [$this->day_of_week];
+        // Fallback to Monday if no days specified
+        return [1];
     }
 
     /**
@@ -386,9 +372,6 @@ class IceTimeSlot {
             sort($validDays);
             
             $this->days_of_week = json_encode($validDays);
-            
-            // Set legacy day_of_week to first day for compatibility
-            $this->day_of_week = !empty($validDays) ? $validDays[0] : 1;
         }
     }
 

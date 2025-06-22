@@ -115,28 +115,17 @@ class IceTimeSlotsController {
                 return;
             }
 
-            if (!isset($data->ice_surface_id) || !isset($data->start_time) || !isset($data->end_time) || !isset($data->day_of_week) || !isset($data->effective_date)) {
+            if (!isset($data->ice_surface_id) || !isset($data->start_time) || !isset($data->end_time) || !isset($data->days_of_week) || !isset($data->effective_date)) {
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Ice surface ID, start time, end time, day of week, and effective date are required'
+                    'message' => 'Ice surface ID, start time, end time, days of week, and effective date are required'
                 ]);
                 return;
             }
 
             $this->ice_time_slot->ice_surface_id = $data->ice_surface_id;
-            
-            // Handle both new days_of_week format and legacy day_of_week
-            if (isset($data->days_of_week)) {
-                $this->ice_time_slot->days_of_week = $data->days_of_week;
-            } else if (isset($data->day_of_week)) {
-                // Legacy single day format - will be converted in the model
-                $this->ice_time_slot->day_of_week = $data->day_of_week;
-                $this->ice_time_slot->days_of_week = null; // Let model auto-calculate
-            } else {
-                // No day specified - let model auto-calculate from effective_date
-                $this->ice_time_slot->days_of_week = null;
-            }
+            $this->ice_time_slot->days_of_week = $data->days_of_week;
             
             $this->ice_time_slot->start_time = $data->start_time;
             $this->ice_time_slot->end_time = $data->end_time;
@@ -154,8 +143,7 @@ class IceTimeSlotsController {
                 // Auto-create allocations for this ice time slot
                 $allocations_created = 0;
                 if ($this->ice_time_slot->recurring) {
-                    // Use days_of_week if available, fallback to day_of_week
-                    $days_data = $this->ice_time_slot->days_of_week ?: $this->ice_time_slot->day_of_week;
+                    $days_data = $this->ice_time_slot->days_of_week;
                     
                     $allocations_created = $this->allocation->createAllocationsForSlot(
                         $slot_id,
@@ -168,7 +156,7 @@ class IceTimeSlotsController {
                     // For non-recurring slots, create a single allocation
                     $allocation_data = [
                         'ice_time_slot_id' => $slot_id,
-                        'program_id' => 0, // Unassigned
+                        'program_id' => null, // Unassigned
                         'allocation_date' => $this->ice_time_slot->effective_date,
                         'status' => 'available',
                         'allocation_type' => 'one_time',
@@ -241,7 +229,7 @@ class IceTimeSlotsController {
             }
 
             $this->ice_time_slot->ice_surface_id = isset($data->ice_surface_id) ? $data->ice_surface_id : $existing['ice_surface_id'];
-            $this->ice_time_slot->day_of_week = isset($data->day_of_week) ? $data->day_of_week : $existing['day_of_week'];
+            $this->ice_time_slot->days_of_week = isset($data->days_of_week) ? $data->days_of_week : $existing['days_of_week'];
             $this->ice_time_slot->start_time = isset($data->start_time) ? $data->start_time : $existing['start_time'];
             $this->ice_time_slot->end_time = isset($data->end_time) ? $data->end_time : $existing['end_time'];
             $this->ice_time_slot->effective_date = isset($data->effective_date) ? $data->effective_date : $existing['effective_date'];

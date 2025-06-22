@@ -152,6 +152,15 @@ class CRUDFactory {
                         <input type="password" id="${inputId}" name="${field.name}" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" ${field.required ? 'required' : ''}>
                     `;
                     break;
+                case 'custom':
+                    if (field.customRenderer && typeof field.customRenderer === 'function') {
+                        inputHTML = field.customRenderer(field.name, '', true);
+                    } else {
+                        inputHTML = `
+                            <input type="text" id="${inputId}" name="${field.name}" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" ${field.required ? 'required' : ''}>
+                        `;
+                    }
+                    break;
                 default:
                     inputHTML = `
                         <input type="${field.type || 'text'}" id="${inputId}" name="${field.name}" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500" ${field.required ? 'required' : ''}>
@@ -327,12 +336,26 @@ class CRUDFactory {
 
     populateForm(item) {
         this.fields.filter(f => f.editable !== false).forEach(field => {
-            const input = document.getElementById(`${this.entityName}-${field.name}`);
-            if (input) {
-                if (field.type === 'checkbox') {
-                    input.checked = !!item[field.name];
-                } else {
-                    input.value = item[field.name] || '';
+            if (field.type === 'custom' && field.customRenderer) {
+                // For custom fields, we need to re-render with current value
+                const container = document.querySelector(`[data-field="${field.name}"]`)?.parentElement;
+                if (container) {
+                    const label = container.querySelector('label');
+                    const labelText = label ? label.innerHTML : '';
+                    const customHTML = field.customRenderer(field.name, item[field.name], true);
+                    container.innerHTML = `
+                        ${label ? `<label class="block text-gray-700 text-sm font-bold mb-2">${labelText}</label>` : ''}
+                        ${customHTML}
+                    `;
+                }
+            } else {
+                const input = document.getElementById(`${this.entityName}-${field.name}`);
+                if (input) {
+                    if (field.type === 'checkbox') {
+                        input.checked = !!item[field.name];
+                    } else {
+                        input.value = item[field.name] || '';
+                    }
                 }
             }
         });
@@ -347,6 +370,17 @@ class CRUDFactory {
             const field = this.fields.find(f => f.name === key);
             if (field && field.type === 'checkbox') {
                 data[key] = true;
+            } else if (field && field.type === 'custom') {
+                // For custom fields, try to parse JSON if it looks like JSON
+                try {
+                    if (typeof value === 'string' && value.startsWith('[')) {
+                        data[key] = JSON.parse(value);
+                    } else {
+                        data[key] = value;
+                    }
+                } catch (e) {
+                    data[key] = value;
+                }
             } else {
                 data[key] = value;
             }
