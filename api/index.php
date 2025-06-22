@@ -174,6 +174,153 @@ try {
             }
             break;
 
+        case 'facilities':
+            require_once 'controllers/FacilityController.php';
+            $controller = new FacilityController($db);
+            
+            if ($request_method === 'GET' && !isset($path_parts[1])) {
+                $controller->getAll();
+            } elseif ($request_method === 'GET' && isset($path_parts[1])) {
+                $controller->getById($path_parts[1]);
+            } elseif ($request_method === 'POST') {
+                $controller->create();
+            } elseif ($request_method === 'PUT' && isset($path_parts[1])) {
+                $controller->update($path_parts[1]);
+            } elseif ($request_method === 'DELETE' && isset($path_parts[1])) {
+                $controller->delete($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'facility-admins':
+            if ($request_method === 'GET') {
+                require_once 'controllers/FacilityController.php';
+                $controller = new FacilityController($db);
+                $controller->getFacilityAdmins();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-surfaces':
+            require_once 'controllers/IceSurfaceController.php';
+            $controller = new IceSurfaceController($db);
+            
+            if ($request_method === 'GET' && !isset($path_parts[1])) {
+                $controller->getAll();
+            } elseif ($request_method === 'GET' && isset($path_parts[1])) {
+                $controller->getById($path_parts[1]);
+            } elseif ($request_method === 'POST') {
+                $controller->create();
+            } elseif ($request_method === 'PUT' && isset($path_parts[1])) {
+                $controller->update($path_parts[1]);
+            } elseif ($request_method === 'DELETE' && isset($path_parts[1])) {
+                $controller->delete($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-surfaces-by-facility':
+            if ($request_method === 'GET' && isset($path_parts[1])) {
+                require_once 'controllers/IceSurfaceController.php';
+                $controller = new IceSurfaceController($db);
+                $controller->getByFacility($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-surface-facilities':
+            if ($request_method === 'GET') {
+                require_once 'controllers/IceSurfaceController.php';
+                $controller = new IceSurfaceController($db);
+                $controller->getFacilities();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'programs':
+            require_once 'controllers/ProgramController.php';
+            $controller = new ProgramController($db);
+            
+            if ($request_method === 'GET' && !isset($path_parts[1])) {
+                $controller->getAll();
+            } elseif ($request_method === 'GET' && isset($path_parts[1])) {
+                $controller->getById($path_parts[1]);
+            } elseif ($request_method === 'POST') {
+                $controller->create();
+            } elseif ($request_method === 'PUT' && isset($path_parts[1])) {
+                $controller->update($path_parts[1]);
+            } elseif ($request_method === 'DELETE' && isset($path_parts[1])) {
+                $controller->delete($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-time-slots':
+            require_once 'controllers/IceTimeSlotsController.php';
+            $controller = new IceTimeSlotsController($db);
+            
+            if ($request_method === 'GET' && !isset($path_parts[1])) {
+                $controller->getAll();
+            } elseif ($request_method === 'GET' && isset($path_parts[1])) {
+                $controller->getById($path_parts[1]);
+            } elseif ($request_method === 'POST') {
+                $controller->create();
+            } elseif ($request_method === 'PUT' && isset($path_parts[1])) {
+                $controller->update($path_parts[1]);
+            } elseif ($request_method === 'DELETE' && isset($path_parts[1])) {
+                $controller->delete($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-time-slots-by-surface':
+            if ($request_method === 'GET' && isset($path_parts[1])) {
+                require_once 'controllers/IceTimeSlotsController.php';
+                $controller = new IceTimeSlotsController($db);
+                $controller->getByIceSurface($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-time-slots-available':
+            if ($request_method === 'GET') {
+                require_once 'controllers/IceTimeSlotsController.php';
+                $controller = new IceTimeSlotsController($db);
+                $controller->getAvailable();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'ice-time-slots-ice-surfaces':
+            if ($request_method === 'GET') {
+                require_once 'controllers/IceTimeSlotsController.php';
+                $controller = new IceTimeSlotsController($db);
+                $controller->getIceSurfaces();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+
         case 'health':
             http_response_code(200);
             echo json_encode([

@@ -48,6 +48,7 @@ class AuthController {
             'user_id' => $user_data['id'],
             'email' => $user_data['email'],
             'role' => $user_data['role_name'],
+            'permissions' => $user_data['permissions'],
             'iat' => time(),
             'exp' => time() + JWT_EXPIRY
         ];

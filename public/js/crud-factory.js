@@ -407,7 +407,7 @@ class CRUDFactory {
 
             if (response.ok) {
                 const result = await response.json();
-                const item = result[this.config.singularName?.toLowerCase()] || result.user || result.data;
+                const item = result[this.config.itemKey] || result[this.config.singularName?.toLowerCase().replace(/\s+/g, '_')] || result.user || result.data;
                 this.openModal(item);
             } else {
                 this.showToast('Failed to load item details', 'error');

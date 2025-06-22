@@ -32,6 +32,8 @@ class UserController {
             unset($user['password_hash']);
             unset($user['password_reset_token']);
             unset($user['email_verification_token']);
+            // Add 'role' field for frontend compatibility
+            $user['role'] = $user['role_name'];
         }
 
         http_response_code(200);

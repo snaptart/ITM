@@ -3,6 +3,10 @@ class ITMApp {
         this.currentUser = null;
         this.eventSource = null;
         this.userManagement = null;
+        this.facilityManagement = null;
+        this.iceSurfaceManagement = null;
+        this.programManagement = null;
+        this.iceTimeSlotsManagement = null;
         this.init();
     }
 
@@ -375,19 +379,67 @@ class ITMApp {
                 break;
                 
             case 'facilities':
-                dashboardContent.innerHTML = '<div class="text-center py-8">Facilities management coming soon...</div>';
+                if (this.currentUser.permissions.includes('facility_management')) {
+                    dashboardContent.innerHTML = '<div class="text-center py-8">Loading facility management...</div>';
+                    
+                    if (!this.facilityManagement) {
+                        const { FacilityManagement } = await import('./facility-management.js');
+                        this.facilityManagement = new FacilityManagement(this);
+                        await this.facilityManagement.init();
+                    }
+                    
+                    await this.facilityManagement.render();
+                } else {
+                    dashboardContent.innerHTML = '<div class="text-center py-8 text-red-500">Access denied. Insufficient permissions.</div>';
+                }
                 break;
                 
             case 'ice-surfaces':
-                dashboardContent.innerHTML = '<div class="text-center py-8">Ice surfaces management coming soon...</div>';
+                if (this.currentUser.permissions.includes('ice_surface_management')) {
+                    dashboardContent.innerHTML = '<div class="text-center py-8">Loading ice surface management...</div>';
+                    
+                    if (!this.iceSurfaceManagement) {
+                        const { IceSurfaceManagement } = await import('./ice-surface-management.js');
+                        this.iceSurfaceManagement = new IceSurfaceManagement(this);
+                        await this.iceSurfaceManagement.init();
+                    }
+                    
+                    await this.iceSurfaceManagement.render();
+                } else {
+                    dashboardContent.innerHTML = '<div class="text-center py-8 text-red-500">Access denied. Insufficient permissions.</div>';
+                }
                 break;
                 
             case 'programs':
-                dashboardContent.innerHTML = '<div class="text-center py-8">Programs management coming soon...</div>';
+                if (this.currentUser.permissions.includes('program_management')) {
+                    dashboardContent.innerHTML = '<div class="text-center py-8">Loading program management...</div>';
+                    
+                    if (!this.programManagement) {
+                        const { ProgramManagement } = await import('./program-management.js');
+                        this.programManagement = new ProgramManagement(this);
+                        await this.programManagement.init();
+                    }
+                    
+                    await this.programManagement.render();
+                } else {
+                    dashboardContent.innerHTML = '<div class="text-center py-8 text-red-500">Access denied. Insufficient permissions.</div>';
+                }
                 break;
                 
             case 'ice-time-slots':
-                dashboardContent.innerHTML = '<div class="text-center py-8">Ice time slots management coming soon...</div>';
+                if (this.currentUser.permissions.includes('ice_time_management')) {
+                    dashboardContent.innerHTML = '<div class="text-center py-8">Loading ice time slots management...</div>';
+                    
+                    if (!this.iceTimeSlotsManagement) {
+                        const { IceTimeSlotsManagement } = await import('./ice-time-slots-management.js');
+                        this.iceTimeSlotsManagement = new IceTimeSlotsManagement(this);
+                        await this.iceTimeSlotsManagement.init();
+                    }
+                    
+                    await this.iceTimeSlotsManagement.render();
+                } else {
+                    dashboardContent.innerHTML = '<div class="text-center py-8 text-red-500">Access denied. Insufficient permissions.</div>';
+                }
                 break;
                 
             case 'reports':
