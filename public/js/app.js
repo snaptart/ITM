@@ -187,7 +187,6 @@ class ITMApp {
                 { title: 'Ice Surfaces', action: 'ice-surfaces' },
                 { title: 'Programs', action: 'programs' },
                 { title: 'Ice Time Slots', action: 'ice-time-slots' },
-                { title: 'Calendar', action: 'calendar' },
                 { title: 'Reports', action: 'reports' }
             ];
         } else if (userRole === 'facility_admin') {
@@ -197,14 +196,12 @@ class ITMApp {
                 { title: 'Ice Surfaces', action: 'ice-surfaces' },
                 { title: 'Ice Time Slots', action: 'ice-time-slots' },
                 { title: 'Allocations', action: 'allocations' },
-                { title: 'Programs', action: 'programs' },
-                { title: 'Calendar', action: 'calendar' }
+                { title: 'Programs', action: 'programs' }
             ];
         } else if (userRole === 'program_user') {
             menuItems = [
                 { title: 'Dashboard', action: 'dashboard' },
                 { title: 'My Allocations', action: 'my-allocations' },
-                { title: 'Calendar', action: 'calendar' },
                 { title: 'Confirmations', action: 'confirmations' }
             ];
         }
@@ -267,12 +264,7 @@ class ITMApp {
                         <p class="text-3xl font-bold text-orange-600" id="pending-confirmations">-</p>
                     </div>
                 </div>
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-xl font-semibold mb-4">Ice Time Calendar</h3>
-                    <div id="calendar"></div>
-                </div>
             `;
-            this.initCalendar();
         } else if (userRole === 'program_user') {
             dashboardContent.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -285,12 +277,7 @@ class ITMApp {
                         <p class="text-3xl font-bold text-orange-600" id="pending-confirmations-count">-</p>
                     </div>
                 </div>
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-xl font-semibold mb-4">My Ice Time Schedule</h3>
-                    <div id="calendar"></div>
-                </div>
             `;
-            this.initCalendar();
         }
 
         this.loadDashboardData();
@@ -332,541 +319,21 @@ class ITMApp {
         }
     }
 
-    initCalendar() {
-        const calendarEl = document.getElementById('calendar');
-        if (calendarEl) {
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                events: async (info) => {
-                    try {
-                        const events = await this.loadCalendarEvents(info.start, info.end);
-                        return Array.isArray(events) ? events : [];
-                    } catch (error) {
-                        console.error('Error in FullCalendar events function:', error);
-                        return [];
-                    }
-                },
-                eventClick: (info) => {
-                    this.showEventDetails(info.event);
-                }
-            });
-            calendar.render();
-        }
-    }
 
-    showEventDetails(event) {
-        console.log('Event clicked:', event);
-    }
 
-    loadCalendarPage() {
-        const dashboardContent = document.getElementById('dashboard-content');
-        const userRole = this.currentUser.role;
-        
-        let sidebarTitle = 'My Ice Time Slots';
-        if (userRole === 'facility_admin') {
-            sidebarTitle = 'Ice Time Allocations';
-        } else if (userRole === 'system_admin') {
-            sidebarTitle = 'All Ice Time Allocations';
-        }
-        
-        dashboardContent.innerHTML = `
-            <div class="flex h-full">
-                <!-- Workspace Sidebar -->
-                <div class="w-80 bg-white rounded-lg shadow-md mr-6 flex flex-col">
-                    <div class="p-4 border-b">
-                        <h3 class="text-lg font-semibold text-gray-800">${sidebarTitle}</h3>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-4">
-                        <div id="assigned-slots">
-                            <div class="text-center text-gray-500 py-8">Loading assigned slots...</div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Main Calendar Area -->
-                <div class="flex-1 bg-white rounded-lg shadow-md p-6">
-                    <!-- Filters -->
-                    <div class="mb-6 flex flex-wrap gap-4 items-center justify-between">
-                        <h2 class="text-xl font-semibold text-gray-800">Ice Time Calendar</h2>
-                        <div class="flex gap-4">
-                            <div class="flex items-center gap-2">
-                                <label for="facility-filter" class="text-sm font-medium text-gray-700">Facility:</label>
-                                <select id="facility-filter" class="border border-gray-300 rounded-md px-3 py-1 text-sm">
-                                    <option value="">All Facilities</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <label for="program-filter" class="text-sm font-medium text-gray-700">Program:</label>
-                                <select id="program-filter" class="border border-gray-300 rounded-md px-3 py-1 text-sm">
-                                    <option value="">All Programs</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Calendar -->
-                    <div id="main-calendar"></div>
-                </div>
-            </div>
-        `;
 
-        this.initMainCalendar();
-        this.loadAssignedSlots();
-        this.loadCalendarFilters();
-    }
 
-    initMainCalendar() {
-        const calendarEl = document.getElementById('main-calendar');
-        if (calendarEl && typeof FullCalendar !== 'undefined') {
-            this.mainCalendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'timeGridWeek',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                height: 'auto',
-                slotMinTime: '06:00:00',
-                slotMaxTime: '23:00:00',
-                slotDuration: '01:00:00',
-                allDaySlot: false,
-                events: async (info) => {
-                    try {
-                        const events = await this.loadCalendarEvents(info.start, info.end);
-                        // Ensure we always return an array
-                        return Array.isArray(events) ? events : [];
-                    } catch (error) {
-                        console.error('Error in FullCalendar events function:', error);
-                        return [];
-                    }
-                },
-                eventClick: (info) => {
-                    this.showCalendarEventDetails(info.event);
-                },
-                eventDidMount: (info) => {
-                    info.el.style.cursor = 'pointer';
-                }
-            });
-            this.mainCalendar.render();
-        } else if (!calendarEl) {
-            console.error('Calendar element not found');
-        } else if (typeof FullCalendar === 'undefined') {
-            console.error('FullCalendar library not loaded');
-            document.getElementById('main-calendar').innerHTML = 
-                '<div class="text-center text-gray-500 py-8">Calendar library not loaded. Please refresh the page.</div>';
-        }
-    }
 
-    async loadCalendarEvents(start, end) {
-        try {
-            const token = localStorage.getItem('authToken');
-            const facilityFilter = document.getElementById('facility-filter')?.value || '';
-            const programFilter = document.getElementById('program-filter')?.value || '';
-            const userRole = this.currentUser.role;
-            
-            const params = new URLSearchParams({
-                start: start.toISOString(),
-                end: end.toISOString(),
-                facility_id: facilityFilter,
-                program_id: programFilter
-            });
 
-            // Add role-based filtering
-            if (userRole === 'program_user') {
-                // Program users should only see their allocations and available ice time
-                params.append('show_available', 'false'); // Only their assignments
-                params.append('user_program_id', this.currentUser.program_id || 0);
-            } else if (userRole === 'facility_admin') {
-                // Facility admins see all allocations for their facility
-                params.append('show_available', 'true');
-                params.append('facility_admin', 'true');
-            } else if (userRole === 'system_admin') {
-                // System admins see everything
-                params.append('show_available', 'true');
-                params.append('show_all', 'true');
-            }
 
-            const response = await fetch(`/itm/api/calendar-events?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
 
-            if (response.ok) {
-                const data = await response.json();
-                const events = Array.isArray(data) ? data : (data.events || []);
-                
-                // Ensure we have a valid array and valid event objects
-                if (!Array.isArray(events)) {
-                    console.log('Calendar events: Invalid data structure, returning empty array');
-                    return [];
-                }
-                
-                return events.filter(event => event && event.id).map(event => {
-                    // Determine color based on allocation status and program assignment
-                    let backgroundColor, borderColor, title;
-                    
-                    if (event.program_id === 0 || event.program_id === null) {
-                        // Unassigned ice time
-                        backgroundColor = '#e5e7eb'; // gray-200
-                        borderColor = '#9ca3af'; // gray-400
-                        title = 'Available Ice Time';
-                    } else {
-                        // Assigned to a program
-                        title = event.program_name || 'Ice Time';
-                        
-                        switch(event.status) {
-                            case 'confirmed':
-                                backgroundColor = '#10b981'; // green-500
-                                borderColor = '#059669'; // green-600
-                                break;
-                            case 'pending':
-                                backgroundColor = '#f59e0b'; // yellow-500
-                                borderColor = '#d97706'; // yellow-600
-                                break;
-                            case 'declined':
-                                backgroundColor = '#ef4444'; // red-500
-                                borderColor = '#dc2626'; // red-600
-                                break;
-                            default:
-                                backgroundColor = '#6b7280'; // gray-500
-                                borderColor = '#4b5563'; // gray-600
-                        }
-                    }
-                    
-                    return {
-                        id: event.id,
-                        title: title,
-                        start: event.start || event.date + 'T' + event.start_time,
-                        end: event.end || event.date + 'T' + event.end_time,
-                        backgroundColor: backgroundColor,
-                        borderColor: borderColor,
-                        extendedProps: {
-                            allocation_id: event.id,
-                            facility_name: event.facility_name || '',
-                            program_name: event.program_name || '',
-                            program_id: event.program_id || 0,
-                            ice_surface_name: event.ice_surface_name || '',
-                            status: event.status || 'available',
-                            date: event.date,
-                            start_time: event.start_time,
-                            end_time: event.end_time
-                        }
-                    };
-                });
-            } else if (response.status === 404 || response.status === 403) {
-                // API doesn't exist or no permission - return empty events
-                console.log('Calendar events API not available, showing empty calendar');
-                return [];
-            }
-            return [];
-        } catch (error) {
-            console.error('Error loading calendar events:', error);
-            return [];
-        }
-    }
 
-    async loadCalendarFilters() {
-        await Promise.all([
-            this.loadFacilityFilter(),
-            this.loadProgramFilter()
-        ]);
-        
-        document.getElementById('facility-filter').addEventListener('change', () => {
-            this.mainCalendar.refetchEvents();
-        });
-        
-        document.getElementById('program-filter').addEventListener('change', () => {
-            this.mainCalendar.refetchEvents();
-        });
-    }
 
-    async loadFacilityFilter() {
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch('/itm/api/facilities', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
 
-            if (response.ok) {
-                const data = await response.json();
-                const facilities = Array.isArray(data) ? data : (data.data || []);
-                const select = document.getElementById('facility-filter');
-                
-                facilities.forEach(facility => {
-                    const option = document.createElement('option');
-                    option.value = facility.id;
-                    option.textContent = facility.name;
-                    select.appendChild(option);
-                });
-            } else if (response.status === 404 || response.status === 403) {
-                // API doesn't exist or no permission - silently continue
-                console.log('Facilities API not available, continuing without filter options');
-            }
-        } catch (error) {
-            console.error('Error loading facilities for filter:', error);
-        }
-    }
 
-    async loadProgramFilter() {
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch('/itm/api/programs', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
 
-            if (response.ok) {
-                const data = await response.json();
-                const programs = Array.isArray(data) ? data : (data.data || []);
-                const select = document.getElementById('program-filter');
-                
-                programs.forEach(program => {
-                    const option = document.createElement('option');
-                    option.value = program.id;
-                    option.textContent = program.name;
-                    select.appendChild(option);
-                });
-            } else if (response.status === 404 || response.status === 403) {
-                // API doesn't exist or no permission - silently continue
-                console.log('Programs API not available, continuing without filter options');
-            }
-        } catch (error) {
-            console.error('Error loading programs for filter:', error);
-        }
-    }
-
-    async loadAssignedSlots() {
-        try {
-            const token = localStorage.getItem('authToken');
-            const userRole = this.currentUser.role;
-            
-            let apiEndpoint = '/itm/api/my-allocations';
-            
-            // Use different endpoints based on user role
-            if (userRole === 'facility_admin') {
-                apiEndpoint = '/itm/api/allocations';
-            } else if (userRole === 'system_admin') {
-                apiEndpoint = '/itm/api/allocations';
-            }
-            
-            const response = await fetch(apiEndpoint, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                const allocations = Array.isArray(data) ? data : (data.data || []);
-                this.renderAssignedSlots(allocations);
-            } else if (response.status === 404 || response.status === 403) {
-                // API endpoint doesn't exist yet or no permission
-                this.renderAssignedSlots([]);
-            }
-        } catch (error) {
-            console.error('Error loading assigned slots:', error);
-            // Show placeholder content instead of error for missing APIs
-            this.renderAssignedSlots([]);
-        }
-    }
-
-    renderAssignedSlots(slots) {
-        const container = document.getElementById('assigned-slots');
-        const userRole = this.currentUser.role;
-        
-        if (!slots || slots.length === 0) {
-            let emptyMessage = 'No assigned ice time slots';
-            let helperText = 'Your confirmed and pending ice time assignments will appear here.';
-            
-            if (userRole === 'facility_admin') {
-                emptyMessage = 'No ice time allocations found';
-                helperText = 'Ice time allocations for your facility will appear here once the allocation system is configured.';
-            } else if (userRole === 'system_admin') {
-                emptyMessage = 'No allocations in system';
-                helperText = 'All system-wide ice time allocations will appear here once programs are assigned ice time.';
-            }
-            
-            container.innerHTML = `
-                <div class="text-center text-gray-500 py-8">
-                    <div class="mb-2">${emptyMessage}</div>
-                    <div class="text-sm text-gray-400">${helperText}</div>
-                </div>
-            `;
-            return;
-        }
-
-        container.innerHTML = slots.map(slot => `
-            <div class="bg-gray-50 rounded-lg p-4 mb-3 border border-gray-200 hover:shadow-md transition-shadow">
-                <div class="flex justify-between items-start mb-2">
-                    <h4 class="font-semibold text-gray-800">${slot.facility_name}</h4>
-                    <span class="text-xs px-2 py-1 rounded-full ${this.getStatusColor(slot.status)}">
-                        ${slot.status}
-                    </span>
-                </div>
-                <div class="text-sm text-gray-600 space-y-1">
-                    <div><strong>Surface:</strong> ${slot.ice_surface_name}</div>
-                    <div><strong>Date:</strong> ${new Date(slot.date).toLocaleDateString()}</div>
-                    <div><strong>Time:</strong> ${slot.start_time} - ${slot.end_time}</div>
-                    ${slot.program_name ? `<div><strong>Program:</strong> ${slot.program_name}</div>` : ''}
-                </div>
-                ${slot.status === 'pending' ? `
-                    <div class="mt-3 flex gap-2">
-                        <button class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded" 
-                                onclick="app.confirmSlot(${slot.id})">Confirm</button>
-                        <button class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded" 
-                                onclick="app.declineSlot(${slot.id})">Decline</button>
-                    </div>
-                ` : ''}
-            </div>
-        `).join('');
-    }
-
-    getStatusColor(status) {
-        switch(status) {
-            case 'confirmed': return 'bg-green-100 text-green-800';
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'declined': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    }
-
-    showCalendarEventDetails(event) {
-        const props = event.extendedProps;
-        const isAvailable = props.program_id === 0 || props.program_id === null;
-        
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        modal.innerHTML = `
-            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 class="text-lg font-semibold mb-4">${event.title}</h3>
-                <div class="space-y-2 text-sm">
-                    <div><strong>Facility:</strong> ${props.facility_name || 'N/A'}</div>
-                    <div><strong>Ice Surface:</strong> ${props.ice_surface_name || 'N/A'}</div>
-                    <div><strong>Date:</strong> ${props.date || event.start.toLocaleDateString()}</div>
-                    <div><strong>Time:</strong> ${props.start_time || event.start.toLocaleTimeString()} - ${props.end_time || event.end.toLocaleTimeString()}</div>
-                    ${isAvailable ? 
-                        `<div><strong>Status:</strong> <span class="text-gray-600">Available</span></div>` :
-                        `<div><strong>Program:</strong> ${props.program_name || 'N/A'}</div>
-                         <div><strong>Status:</strong> <span class="capitalize ${this.getStatusTextColor(props.status)}">${props.status || 'N/A'}</span></div>`
-                    }
-                </div>
-                ${this.renderEventActions(props)}
-                <div class="mt-6 flex justify-end">
-                    <button class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded" onclick="this.closest('.fixed').remove()">
-                        Close
-                    </button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-
-    getStatusTextColor(status) {
-        switch(status) {
-            case 'confirmed': return 'text-green-600';
-            case 'pending': return 'text-yellow-600';
-            case 'declined': return 'text-red-600';
-            default: return 'text-gray-600';
-        }
-    }
-
-    renderEventActions(props) {
-        const userRole = this.currentUser.role;
-        const isAvailable = props.program_id === 0 || props.program_id === null;
-        const isUserProgram = props.program_id === this.currentUser.program_id;
-        
-        if (isAvailable && (userRole === 'facility_admin' || userRole === 'system_admin')) {
-            return `
-                <div class="mt-4 p-3 bg-gray-50 rounded">
-                    <p class="text-sm text-gray-600 mb-2">This ice time is available for allocation.</p>
-                    <button class="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded" 
-                            onclick="app.allocateIceTime(${props.allocation_id})">
-                        Allocate to Program
-                    </button>
-                </div>
-            `;
-        } else if (!isAvailable && isUserProgram && props.status === 'pending') {
-            return `
-                <div class="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
-                    <p class="text-sm text-gray-600 mb-2">This ice time has been allocated to your program. Please confirm or decline.</p>
-                    <div class="flex gap-2">
-                        <button class="bg-green-500 hover:bg-green-600 text-white text-sm px-3 py-1 rounded" 
-                                onclick="app.confirmAllocation(${props.allocation_id}); this.closest('.fixed').remove();">
-                            Confirm
-                        </button>
-                        <button class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1 rounded" 
-                                onclick="app.declineAllocation(${props.allocation_id}); this.closest('.fixed').remove();">
-                            Decline
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-        return '';
-    }
-
-    async confirmSlot(slotId) {
-        if (!confirm('Are you sure you want to confirm this ice time slot?')) return;
-        
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`/itm/api/confirm-allocation/${slotId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                this.showToast('Ice time slot confirmed successfully', 'success');
-                this.loadAssignedSlots();
-                this.mainCalendar.refetchEvents();
-            } else {
-                const data = await response.json();
-                this.showToast(data.error || 'Failed to confirm slot', 'error');
-            }
-        } catch (error) {
-            console.error('Error confirming slot:', error);
-            this.showToast('Network error. Please try again.', 'error');
-        }
-    }
-
-    async declineSlot(slotId) {
-        if (!confirm('Are you sure you want to decline this ice time slot?')) return;
-        
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`/itm/api/decline-allocation/${slotId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                this.showToast('Ice time slot declined', 'info');
-                this.loadAssignedSlots();
-                this.mainCalendar.refetchEvents();
-            } else {
-                const data = await response.json();
-                this.showToast(data.error || 'Failed to decline slot', 'error');
-            }
-        } catch (error) {
-            console.error('Error declining slot:', error);
-            this.showToast('Network error. Please try again.', 'error');
-        }
-    }
 
     async loadContent(action) {
         console.log('Loading content for:', action);
@@ -1117,9 +584,6 @@ class ITMApp {
                 dashboardContent.innerHTML = '<div class="text-center py-8">My allocations coming soon...</div>';
                 break;
                 
-            case 'calendar':
-                this.loadCalendarPage();
-                break;
                 
             case 'confirmations':
                 dashboardContent.innerHTML = '<div class="text-center py-8">Confirmations coming soon...</div>';
