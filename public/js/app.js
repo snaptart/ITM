@@ -342,7 +342,15 @@ class ITMApp {
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
-                events: '/itm/api/calendar-events',
+                events: async (info) => {
+                    try {
+                        const events = await this.loadCalendarEvents(info.start, info.end);
+                        return Array.isArray(events) ? events : [];
+                    } catch (error) {
+                        console.error('Error in FullCalendar events function:', error);
+                        return [];
+                    }
+                },
                 eventClick: (info) => {
                     this.showEventDetails(info.event);
                 }

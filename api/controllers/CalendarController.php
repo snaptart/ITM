@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../models/Allocation.php';
-require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../includes/jwt.php';
 
 class CalendarController {
     private $db;
@@ -14,20 +14,15 @@ class CalendarController {
     public function getEvents() {
         try {
             // Check authentication
-            $auth_result = AuthMiddleware::authenticate();
-            if (!$auth_result['success']) {
-                http_response_code(401);
-                echo json_encode(['error' => 'Unauthorized']);
-                return;
-            }
+            $current_user = $this->authenticateRequest();
+            if (!$current_user) return;
 
-            $user = $auth_result['user'];
             $filters = [];
 
             // Apply role-based filtering
-            if (!AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 // Program users only see their own allocations
-                $filters['program_id'] = $user['program_id'] ?? 0;
+                $filters['program_id'] = $current_user['program_id'] ?? 0;
                 
                 // Also include available slots they might request
                 $filters['status'] = ['available', 'proposed', 'confirmed'];
@@ -155,6 +150,61 @@ class CalendarController {
         }
         
         return trim($description);
+    }
+
+    private function authenticateRequest() {
+        $headers = getallheaders();
+        
+        // Try different case variations of Authorization header
+        $auth_header = '';
+        foreach ($headers as $key => $value) {
+            if (strtolower($key) === 'authorization') {
+                $auth_header = $value;
+                break;
+            }
+        }
+
+        if (!$auth_header || !preg_match('/Bearer\s+(.*)$/i', $auth_header, $matches)) {
+            http_response_code(401);
+            echo json_encode(['error' => 'No token provided']);
+            return false;
+        }
+
+        $token = $matches[1];
+
+        try {
+            $decoded = JWT::decode($token, new Key(JWT_SECRET, JWT_ALGORITHM));
+            
+            // Get fresh user data from database to ensure current permissions
+            require_once __DIR__ . '/../models/User.php';
+            $user_model = new User($this->db);
+            $user_data = $user_model->findById($decoded->user_id);
+
+            if (!$user_data) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Invalid token']);
+                return false;
+            }
+
+            return [
+                'user_id' => $user_data['id'],
+                'id' => $user_data['id'],
+                'name' => $user_data['name'],
+                'email' => $user_data['email'],
+                'role' => $user_data['role_name'],
+                'role_display_name' => $user_data['role_display_name'],
+                'permissions' => $user_data['permissions'],
+                'program_id' => $user_data['program_id'] ?? null
+            ];
+        } catch (Exception $e) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid token']);
+            return false;
+        }
+    }
+
+    private function hasPermission($user, $permission) {
+        return in_array($permission, $user['permissions'] ?? []);
     }
 }
 ?>

@@ -41,13 +41,15 @@ class Allocation {
     public function getAll($filters = []) {
         $query = "SELECT 
                     a.*,
-                    its.day_of_week,
+                    its.days_of_week,
+                    its.days_of_week_text,
                     its.start_time,
                     its.end_time,
                     its.slot_type,
                     its.priority_level,
                     its.effective_date,
                     its.expiry_date,
+                    its.recurring,
                     isu.name as ice_surface_name,
                     f.name as facility_name,
                     f.id as facility_id,
@@ -117,13 +119,15 @@ class Allocation {
     public function getById($id) {
         $query = "SELECT 
                     a.*,
-                    its.day_of_week,
+                    its.days_of_week,
+                    its.days_of_week_text,
                     its.start_time,
                     its.end_time,
                     its.slot_type,
                     its.priority_level,
                     its.effective_date,
                     its.expiry_date,
+                    its.recurring,
                     isu.name as ice_surface_name,
                     f.name as facility_name,
                     f.id as facility_id,

@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__ . '/../models/Allocation.php';
-require_once __DIR__ . '/../middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../includes/jwt.php';
 
 class AllocationController {
     private $allocation;
+    private $db;
     
     public function __construct($db) {
+        $this->db = $db;
         $this->allocation = new Allocation($db);
     }
 
@@ -13,25 +15,20 @@ class AllocationController {
     public function getAll() {
         try {
             // Check authentication and permissions
-            $auth_result = AuthMiddleware::authenticate();
-            if (!$auth_result['success']) {
-                http_response_code(401);
-                echo json_encode(['error' => 'Unauthorized']);
-                return;
-            }
+            $current_user = $this->authenticateRequest();
+            if (!$current_user) return;
 
-            $user = $auth_result['user'];
             $filters = [];
 
             // Apply role-based filtering
-            if (AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
+            if ($this->hasPermission($current_user, 'allocation_management')) {
                 // Facility admin - can see all allocations for their facilities
                 if (isset($_GET['facility_id'])) {
                     $filters['facility_id'] = $_GET['facility_id'];
                 }
             } else {
                 // Program user - only see their own allocations and available slots
-                $filters['program_id'] = $user['program_id'] ?? 0;
+                $filters['program_id'] = $current_user['program_id'] ?? 0;
                 
                 // Also include available slots they might request
                 if (!isset($_GET['include_available']) || $_GET['include_available'] === 'true') {
@@ -71,12 +68,8 @@ class AllocationController {
     // GET /api/allocations/{id} - Get allocation by ID
     public function getById($id) {
         try {
-            $auth_result = AuthMiddleware::authenticate();
-            if (!$auth_result['success']) {
-                http_response_code(401);
-                echo json_encode(['error' => 'Unauthorized']);
-                return;
-            }
+            $current_user = $this->authenticateRequest();
+            if (!$current_user) return;
 
             $allocation = $this->allocation->getById($id);
             
@@ -85,13 +78,11 @@ class AllocationController {
                 echo json_encode(['error' => 'Allocation not found']);
                 return;
             }
-
-            $user = $auth_result['user'];
             
             // Check if user can view this allocation
-            if (!AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 // Program users can only see their own allocations
-                if ($allocation['program_id'] != ($user['program_id'] ?? 0)) {
+                if ($allocation['program_id'] != ($current_user['program_id'] ?? 0)) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Access denied']);
                     return;
@@ -120,7 +111,7 @@ class AllocationController {
                 return;
             }
 
-            if (!AuthMiddleware::hasPermission($auth_result['user']['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Insufficient permissions']);
                 return;
@@ -185,7 +176,7 @@ class AllocationController {
                 return;
             }
 
-            if (!AuthMiddleware::hasPermission($auth_result['user']['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Insufficient permissions']);
                 return;
@@ -241,7 +232,7 @@ class AllocationController {
                 return;
             }
 
-            if (!AuthMiddleware::hasPermission($auth_result['user']['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Insufficient permissions']);
                 return;
@@ -281,7 +272,7 @@ class AllocationController {
                 return;
             }
 
-            if (!AuthMiddleware::hasPermission($auth_result['user']['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Insufficient permissions']);
                 return;
@@ -337,7 +328,7 @@ class AllocationController {
                 return;
             }
 
-            if (!AuthMiddleware::hasPermission($auth_result['user']['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 http_response_code(403);
                 echo json_encode(['error' => 'Insufficient permissions']);
                 return;
@@ -388,12 +379,12 @@ class AllocationController {
                 return;
             }
 
-            $user = $auth_result['user'];
+            $current_user = $auth_result['user'];
 
             // Check if user can confirm this allocation
-            if (!AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 // Program user can only confirm their own allocations
-                if ($allocation['program_id'] != ($user['program_id'] ?? 0)) {
+                if ($allocation['program_id'] != ($current_user['program_id'] ?? 0)) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Access denied']);
                     return;
@@ -406,7 +397,7 @@ class AllocationController {
                 return;
             }
 
-            if ($this->allocation->confirm($id, $user['id'])) {
+            if ($this->allocation->confirm($id, $current_user['id'])) {
                 $updated_allocation = $this->allocation->getById($id);
                 
                 http_response_code(200);
@@ -443,12 +434,12 @@ class AllocationController {
                 return;
             }
 
-            $user = $auth_result['user'];
+            $current_user = $auth_result['user'];
 
             // Check if user can decline this allocation
-            if (!AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
                 // Program user can only decline their own allocations
-                if ($allocation['program_id'] != ($user['program_id'] ?? 0)) {
+                if ($allocation['program_id'] != ($current_user['program_id'] ?? 0)) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Access denied']);
                     return;
@@ -528,15 +519,9 @@ class AllocationController {
     // GET /api/allocations/pending-confirmation - Get allocations pending confirmation
     public function getPendingConfirmations() {
         try {
-            $auth_result = AuthMiddleware::authenticate();
-            if (!$auth_result['success']) {
-                http_response_code(401);
-                echo json_encode(['error' => 'Unauthorized']);
-                return;
-            }
-
-            $user = $auth_result['user'];
-            $program_id = $_GET['program_id'] ?? ($user['program_id'] ?? null);
+            $current_user = $this->authenticateRequest();
+            if (!$current_user) return;
+            $program_id = $_GET['program_id'] ?? ($current_user['program_id'] ?? null);
 
             if (!$program_id) {
                 http_response_code(400);
@@ -545,8 +530,8 @@ class AllocationController {
             }
 
             // Non-admin users can only see their own pending confirmations
-            if (!AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
-                if ($program_id != ($user['program_id'] ?? 0)) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
+                if ($program_id != ($current_user['program_id'] ?? 0)) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Access denied']);
                     return;
@@ -571,18 +556,12 @@ class AllocationController {
     // GET /api/allocations/by-program/{program_id} - Get allocations for a program
     public function getByProgram($program_id) {
         try {
-            $auth_result = AuthMiddleware::authenticate();
-            if (!$auth_result['success']) {
-                http_response_code(401);
-                echo json_encode(['error' => 'Unauthorized']);
-                return;
-            }
-
-            $user = $auth_result['user'];
+            $current_user = $this->authenticateRequest();
+            if (!$current_user) return;
 
             // Non-admin users can only see their own program's allocations
-            if (!AuthMiddleware::hasPermission($user['role'], 'allocation_management')) {
-                if ($program_id != ($user['program_id'] ?? 0)) {
+            if (!$this->hasPermission($current_user, 'allocation_management')) {
+                if ($program_id != ($current_user['program_id'] ?? 0)) {
                     http_response_code(403);
                     echo json_encode(['error' => 'Access denied']);
                     return;
@@ -610,6 +589,53 @@ class AllocationController {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to fetch program allocations: ' . $e->getMessage()]);
         }
+    }
+
+    private function authenticateRequest() {
+        $headers = getallheaders();
+        $auth_header = isset($headers['Authorization']) ? $headers['Authorization'] : '';
+
+        if (!$auth_header || !preg_match('/Bearer\s+(.*)$/i', $auth_header, $matches)) {
+            http_response_code(401);
+            echo json_encode(['error' => 'No token provided']);
+            return false;
+        }
+
+        $token = $matches[1];
+
+        try {
+            $decoded = JWT::decode($token, new Key(JWT_SECRET, JWT_ALGORITHM));
+            
+            // Get fresh user data from database to ensure current permissions
+            require_once __DIR__ . '/../models/User.php';
+            $user_model = new User($this->db);
+            $user_data = $user_model->findById($decoded->user_id);
+
+            if (!$user_data) {
+                http_response_code(401);
+                echo json_encode(['error' => 'Invalid token']);
+                return false;
+            }
+
+            return [
+                'user_id' => $user_data['id'],
+                'id' => $user_data['id'],
+                'name' => $user_data['name'],
+                'email' => $user_data['email'],
+                'role' => $user_data['role_name'],
+                'role_display_name' => $user_data['role_display_name'],
+                'permissions' => $user_data['permissions'],
+                'program_id' => $user_data['program_id'] ?? null
+            ];
+        } catch (Exception $e) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid token']);
+            return false;
+        }
+    }
+
+    private function hasPermission($user, $permission) {
+        return in_array($permission, $user['permissions'] ?? []);
     }
 }
 ?>
