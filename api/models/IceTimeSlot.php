@@ -5,7 +5,8 @@ class IceTimeSlot {
 
     public $id;
     public $ice_surface_id;
-    public $day_of_week;
+    public $day_of_week;          // Deprecated - use days_of_week instead
+    public $days_of_week;         // JSON array of day numbers [0,1,2,3,4,5,6]
     public $start_time;
     public $end_time;
     public $effective_date;
@@ -23,9 +24,29 @@ class IceTimeSlot {
     }
 
     public function create() {
+        // Auto-calculate days_of_week if not provided
+        if (empty($this->days_of_week)) {
+            if (!$this->recurring) {
+                // For non-recurring slots, use the day of the effective_date
+                $dayOfWeek = date('w', strtotime($this->effective_date));
+                $this->days_of_week = json_encode([(int)$dayOfWeek]);
+            } else {
+                // For recurring slots without days specified, default to Monday (1)
+                $this->days_of_week = json_encode([1]);
+            }
+        } else if (is_array($this->days_of_week)) {
+            // Convert array to JSON if needed
+            $this->days_of_week = json_encode($this->days_of_week);
+        }
+
+        // Set legacy day_of_week for backward compatibility (first day in the array)
+        $daysArray = json_decode($this->days_of_week, true);
+        $this->day_of_week = !empty($daysArray) ? $daysArray[0] : 1;
+
         $query = "INSERT INTO " . $this->table . " 
                   SET ice_surface_id = :ice_surface_id, 
                       day_of_week = :day_of_week, 
+                      days_of_week = :days_of_week,
                       start_time = :start_time, 
                       end_time = :end_time, 
                       effective_date = :effective_date, 
@@ -40,6 +61,7 @@ class IceTimeSlot {
 
         $stmt->bindValue(':ice_surface_id', $this->ice_surface_id, PDO::PARAM_INT);
         $stmt->bindValue(':day_of_week', $this->day_of_week, PDO::PARAM_INT);
+        $stmt->bindValue(':days_of_week', $this->days_of_week);
         $stmt->bindValue(':start_time', $this->start_time);
         $stmt->bindValue(':end_time', $this->end_time);
         $stmt->bindValue(':effective_date', $this->effective_date);
@@ -96,6 +118,7 @@ class IceTimeSlot {
             $this->id = $row['id'];
             $this->ice_surface_id = $row['ice_surface_id'];
             $this->day_of_week = $row['day_of_week'];
+            $this->days_of_week = $row['days_of_week'] ?? json_encode([(int)$row['day_of_week']]);
             $this->start_time = $row['start_time'];
             $this->end_time = $row['end_time'];
             $this->effective_date = $row['effective_date'];
@@ -140,9 +163,29 @@ class IceTimeSlot {
     }
 
     public function update($id) {
+        // Handle days_of_week similar to create method
+        if (empty($this->days_of_week)) {
+            if (!$this->recurring) {
+                // For non-recurring slots, use the day of the effective_date
+                $dayOfWeek = date('w', strtotime($this->effective_date));
+                $this->days_of_week = json_encode([(int)$dayOfWeek]);
+            } else {
+                // For recurring slots without days specified, default to Monday (1)
+                $this->days_of_week = json_encode([1]);
+            }
+        } else if (is_array($this->days_of_week)) {
+            // Convert array to JSON if needed
+            $this->days_of_week = json_encode($this->days_of_week);
+        }
+
+        // Set legacy day_of_week for backward compatibility (first day in the array)
+        $daysArray = json_decode($this->days_of_week, true);
+        $this->day_of_week = !empty($daysArray) ? $daysArray[0] : 1;
+
         $query = "UPDATE " . $this->table . " 
                   SET ice_surface_id = :ice_surface_id, 
                       day_of_week = :day_of_week, 
+                      days_of_week = :days_of_week,
                       start_time = :start_time, 
                       end_time = :end_time, 
                       effective_date = :effective_date, 
@@ -158,6 +201,7 @@ class IceTimeSlot {
 
         $stmt->bindValue(':ice_surface_id', $this->ice_surface_id, PDO::PARAM_INT);
         $stmt->bindValue(':day_of_week', $this->day_of_week, PDO::PARAM_INT);
+        $stmt->bindValue(':days_of_week', $this->days_of_week);
         $stmt->bindValue(':start_time', $this->start_time);
         $stmt->bindValue(':end_time', $this->end_time);
         $stmt->bindValue(':effective_date', $this->effective_date);
@@ -310,6 +354,86 @@ class IceTimeSlot {
         }
 
         return $ice_time_slots;
+    }
+
+    // Helper methods for multi-day support
+
+    /**
+     * Get days of week as an array
+     * @return array Array of day numbers (0=Sunday, 1=Monday, etc.)
+     */
+    public function getDaysOfWeekArray() {
+        if (is_string($this->days_of_week)) {
+            return json_decode($this->days_of_week, true) ?: [];
+        } else if (is_array($this->days_of_week)) {
+            return $this->days_of_week;
+        }
+        // Fallback to legacy day_of_week
+        return [$this->day_of_week];
+    }
+
+    /**
+     * Set days of week from an array
+     * @param array $days Array of day numbers (0-6)
+     */
+    public function setDaysOfWeek($days) {
+        if (is_array($days)) {
+            // Validate and sort days
+            $validDays = array_filter($days, function($day) {
+                return is_numeric($day) && $day >= 0 && $day <= 6;
+            });
+            $validDays = array_unique(array_map('intval', $validDays));
+            sort($validDays);
+            
+            $this->days_of_week = json_encode($validDays);
+            
+            // Set legacy day_of_week to first day for compatibility
+            $this->day_of_week = !empty($validDays) ? $validDays[0] : 1;
+        }
+    }
+
+    /**
+     * Get human-readable days string
+     * @return string e.g., "Monday, Wednesday, Friday" or "Weekdays" or "Daily"
+     */
+    public function getDaysOfWeekString() {
+        $days = $this->getDaysOfWeekArray();
+        
+        if (empty($days)) {
+            return 'None';
+        }
+        
+        if (count($days) == 7) {
+            return 'Daily';
+        }
+        
+        $weekdays = [1, 2, 3, 4, 5];
+        $weekends = [0, 6];
+        
+        if (array_diff($days, $weekdays) === array_diff($weekdays, $days) && count($days) == 5) {
+            return 'Weekdays';
+        }
+        
+        if (array_diff($days, $weekends) === array_diff($weekends, $days) && count($days) == 2) {
+            return 'Weekends';
+        }
+        
+        $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        $selectedDays = array_map(function($day) use ($dayNames) {
+            return $dayNames[$day];
+        }, $days);
+        
+        return implode(', ', $selectedDays);
+    }
+
+    /**
+     * Check if this slot occurs on a specific day of week
+     * @param int $dayOfWeek Day number (0=Sunday, 1=Monday, etc.)
+     * @return bool
+     */
+    public function occursOnDay($dayOfWeek) {
+        $days = $this->getDaysOfWeekArray();
+        return in_array((int)$dayOfWeek, $days);
     }
 }
 ?>

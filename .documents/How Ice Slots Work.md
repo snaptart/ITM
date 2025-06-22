@@ -6,6 +6,10 @@
   patterns rather than individual bookings - for example, "every Monday 7:00-8:00 PM starting
   January 1st."
 
+  The default behavior should be that when an ice slot is created, allocation records should
+also be created assigned to a program_id of 0 (indicating not assigned yet). An allocation
+would be any start and end times within the effective and expiry dates
+  
   What effective_date Means
 
   The effective_date is the start date for when a recurring ice time slot pattern becomes
@@ -37,8 +41,3 @@
 
   The actual bookings/allocations reference these slot templates to create specific dated
   reservations.
-
-
-  The default behavior should be that when an ice slot is created, allocation records should    │
-│   also be created assigned to a program_id of 0 (indicating not assigned yet). An allocation    │
-│   would be any start and end times within the effective and expiry dates

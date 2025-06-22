@@ -958,7 +958,148 @@ class ITMApp {
                 break;
                 
             case 'allocations':
-                dashboardContent.innerHTML = '<div class="text-center py-8">Allocations management coming soon...</div>';
+                if (this.currentUser.permissions.includes('allocation_management')) {
+                    dashboardContent.innerHTML = `
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center">
+                                <h1 class="text-2xl font-bold text-gray-900">Allocation Management</h1>
+                                <button id="refreshBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                    Refresh
+                                </button>
+                            </div>
+
+                            <!-- Filters -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="text-lg font-medium mb-4">Filters</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Facility</label>
+                                        <select id="facilityFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">All Facilities</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Ice Surface</label>
+                                        <select id="iceSurfaceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">All Surfaces</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Program</label>
+                                        <select id="programFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">All Programs</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Status</label>
+                                        <select id="statusFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">All Statuses</option>
+                                            <option value="available">Available</option>
+                                            <option value="proposed">Proposed</option>
+                                            <option value="confirmed">Confirmed</option>
+                                            <option value="declined">Declined</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">From Date</label>
+                                        <input type="date" id="dateFromFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">To Date</label>
+                                        <input type="date" id="dateToFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bulk Actions -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="text-lg font-medium mb-4">Bulk Actions</h3>
+                                <div class="flex space-x-4">
+                                    <button id="bulkAssignBtn" disabled class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Assign Selected
+                                    </button>
+                                    <button id="bulkUnassignBtn" disabled class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Unassign Selected
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Allocations Table -->
+                            <div class="bg-white rounded-lg shadow overflow-hidden">
+                                <table id="allocationsTable" class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                <input type="checkbox" id="selectAllAllocations">
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Facility</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Bulk Assign Modal -->
+                        <div id="bulkAssignModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+                            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                                <h3 class="text-lg font-medium mb-4">Assign Selected Allocations</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Program</label>
+                                        <select id="bulkAssignProgram" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                            <option value="">Select Program</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Cost (optional)</label>
+                                        <input type="number" step="0.01" id="bulkAssignCost" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Notes (optional)</label>
+                                        <textarea id="bulkAssignNotes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        You are about to assign <span id="selectedCount">0</span> allocations to the selected program.
+                                    </p>
+                                </div>
+                                <div class="flex justify-end space-x-3 mt-6">
+                                    <button id="cancelBulkAssign" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                                        Cancel
+                                    </button>
+                                    <button id="confirmBulkAssign" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                                        Assign
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Load allocation management script and initialize
+                    if (!window.allocationManager) {
+                        const script = document.createElement('script');
+                        script.src = '/itm/public/js/allocation-management.js';
+                        script.onload = () => {
+                            // AllocationManager will auto-initialize when the script loads
+                        };
+                        document.head.appendChild(script);
+                    } else {
+                        // Reinitialize if already loaded
+                        window.allocationManager.loadAllocations();
+                    }
+                } else {
+                    dashboardContent.innerHTML = '<div class="text-center py-8 text-red-500">Access denied. Insufficient permissions for allocation management.</div>';
+                }
                 break;
                 
             case 'my-allocations':

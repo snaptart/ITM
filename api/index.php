@@ -320,6 +320,102 @@ try {
             }
             break;
 
+        case 'allocations':
+            require_once 'controllers/AllocationController.php';
+            $controller = new AllocationController($db);
+            
+            if ($request_method === 'GET' && !isset($path_parts[1])) {
+                $controller->getAll();
+            } elseif ($request_method === 'GET' && isset($path_parts[1])) {
+                $controller->getById($path_parts[1]);
+            } elseif ($request_method === 'POST') {
+                $controller->create();
+            } elseif ($request_method === 'PUT' && isset($path_parts[1])) {
+                $controller->update($path_parts[1]);
+            } elseif ($request_method === 'DELETE' && isset($path_parts[1])) {
+                $controller->delete($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-bulk-assign':
+            if ($request_method === 'POST') {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->bulkAssign();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-bulk-unassign':
+            if ($request_method === 'POST') {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->bulkUnassign();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-confirm':
+            if ($request_method === 'POST' && isset($path_parts[1])) {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->confirm($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-decline':
+            if ($request_method === 'POST' && isset($path_parts[1])) {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->decline($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-available':
+            if ($request_method === 'GET') {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->getAvailable();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-pending-confirmation':
+            if ($request_method === 'GET') {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->getPendingConfirmations();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+
+        case 'allocations-by-program':
+            if ($request_method === 'GET' && isset($path_parts[1])) {
+                require_once 'controllers/AllocationController.php';
+                $controller = new AllocationController($db);
+                $controller->getByProgram($path_parts[1]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
 
         case 'health':
             http_response_code(200);
