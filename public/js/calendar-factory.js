@@ -613,3 +613,6 @@ class CalendarFactory {
         this.eventCache.clear();
     }
 }
+
+// Make CalendarFactory available globally
+window.CalendarFactory = CalendarFactory;

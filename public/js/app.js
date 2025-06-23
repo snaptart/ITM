@@ -122,6 +122,13 @@ class ITMApp {
         localStorage.removeItem('authToken');
         this.currentUser = null;
         this.closeSSE();
+        
+        // Cleanup dashboard calendar
+        if (this.dashboardCalendar) {
+            this.dashboardCalendar.destroy();
+            this.dashboardCalendar = null;
+        }
+        
         this.showLoginForm();
         this.hideDashboard();
         this.showToast('Logged out successfully', 'info');
@@ -243,9 +250,13 @@ class ITMApp {
                         <p class="text-3xl font-bold text-orange-600" id="total-programs">-</p>
                     </div>
                 </div>
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
                     <h3 class="text-xl font-semibold mb-4">Recent Activity</h3>
                     <div id="recent-activity">Loading...</div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-4">Ice Time Calendar</h3>
+                    <div id="admin-calendar-container"></div>
                 </div>
             `;
         } else if (userRole === 'facility_admin') {
@@ -264,6 +275,10 @@ class ITMApp {
                         <p class="text-3xl font-bold text-orange-600" id="pending-confirmations">-</p>
                     </div>
                 </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-4">My Facility Ice Time Calendar</h3>
+                    <div id="facility-admin-calendar-container"></div>
+                </div>
             `;
         } else if (userRole === 'program_user') {
             dashboardContent.innerHTML = `
@@ -277,10 +292,208 @@ class ITMApp {
                         <p class="text-3xl font-bold text-orange-600" id="pending-confirmations-count">-</p>
                     </div>
                 </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold mb-4">My Ice Time Schedule</h3>
+                    <div id="program-user-calendar-container"></div>
+                </div>
             `;
         }
 
         this.loadDashboardData();
+        this.loadDashboardCalendar();
+    }
+
+    async loadDashboardCalendar() {
+        const userRole = this.currentUser.role;
+        let containerId, calendarConfig;
+
+        if (userRole === 'system_admin') {
+            containerId = 'admin-calendar-container';
+            calendarConfig = {
+                containerId: containerId,
+                userRole: userRole,
+                currentUser: this.currentUser,
+                layoutType: 'embedded',
+                initialView: 'dayGridMonth',
+                enableFilters: true,
+                apiEndpoint: '/itm/api/calendar-events',
+                height: 600,
+                permissions: this.currentUser.permissions || []
+            };
+        } else if (userRole === 'facility_admin') {
+            containerId = 'facility-admin-calendar-container';
+            calendarConfig = {
+                containerId: containerId,
+                userRole: userRole,
+                currentUser: this.currentUser,
+                layoutType: 'embedded',
+                initialView: 'dayGridMonth',
+                enableFilters: true,
+                apiEndpoint: '/itm/api/calendar-events',
+                height: 600,
+                permissions: this.currentUser.permissions || []
+            };
+        } else if (userRole === 'program_user') {
+            containerId = 'program-user-calendar-container';
+            calendarConfig = {
+                containerId: containerId,
+                userRole: userRole,
+                currentUser: this.currentUser,
+                layoutType: 'embedded',
+                initialView: 'dayGridMonth',
+                enableFilters: false,
+                apiEndpoint: '/itm/api/calendar-events',
+                height: 600,
+                permissions: this.currentUser.permissions || [],
+                customEventHandlers: {
+                    eventClick: (info, calendarInstance) => {
+                        this.handleProgramUserEventClick(info, calendarInstance);
+                    }
+                }
+            };
+        }
+
+        if (containerId && calendarConfig) {
+            try {
+                // Check if FullCalendar and CalendarFactory are loaded
+                if (!window.FullCalendar) {
+                    console.error('FullCalendar not loaded yet, retrying...');
+                    setTimeout(() => this.loadDashboardCalendar(), 500);
+                    return;
+                }
+                
+                if (!window.CalendarFactory) {
+                    console.error('CalendarFactory not loaded');
+                    return;
+                }
+                
+                this.dashboardCalendar = new CalendarFactory(calendarConfig);
+                await this.dashboardCalendar.render();
+                console.log(`Dashboard calendar initialized for ${userRole}`);
+            } catch (error) {
+                console.error('Error initializing dashboard calendar:', error);
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">Failed to load calendar</p>';
+                }
+            }
+        }
+    }
+
+    handleProgramUserEventClick(info, calendarInstance) {
+        const eventData = info.event.extendedProps.originalEvent;
+        const eventStatus = eventData.status;
+        const userProgramId = this.currentUser.program_id;
+
+        if (eventStatus === 'available') {
+            const content = `
+                <div class="space-y-4">
+                    <p><strong>Time:</strong> ${calendarInstance.formatEventTime(info.event.start, info.event.end)}</p>
+                    <p><strong>Ice Surface:</strong> ${eventData.ice_surface_name}</p>
+                    <p><strong>Facility:</strong> ${eventData.facility_name}</p>
+                    <p><strong>Status:</strong> Available for booking</p>
+                    <p class="text-sm text-gray-600">This ice time slot is available. Contact your facility administrator to request allocation.</p>
+                </div>
+            `;
+            this.showModal('Available Ice Time', content);
+        } else if (eventData.program_id === userProgramId) {
+            let actionButtons = '';
+            if (eventStatus === 'proposed') {
+                actionButtons = `
+                    <div class="flex space-x-2 mt-4">
+                        <button onclick="window.app.confirmAllocation(${eventData.allocation_id})" 
+                                class="bg-green-500 hover:bg-green-700 text-white px-4 py-2 rounded">
+                            Confirm
+                        </button>
+                        <button onclick="window.app.declineAllocation(${eventData.allocation_id})" 
+                                class="bg-red-500 hover:bg-red-700 text-white px-4 py-2 rounded">
+                            Decline
+                        </button>
+                    </div>
+                `;
+            }
+
+            const content = `
+                <div class="space-y-4">
+                    <p><strong>Time:</strong> ${calendarInstance.formatEventTime(info.event.start, info.event.end)}</p>
+                    <p><strong>Ice Surface:</strong> ${eventData.ice_surface_name}</p>
+                    <p><strong>Facility:</strong> ${eventData.facility_name}</p>
+                    <p><strong>Status:</strong> <span class="capitalize">${eventStatus}</span></p>
+                    ${eventData.cost ? `<p><strong>Cost:</strong> $${parseFloat(eventData.cost).toFixed(2)}</p>` : ''}
+                    ${eventData.notes ? `<p><strong>Notes:</strong> ${eventData.notes}</p>` : ''}
+                    ${actionButtons}
+                </div>
+            `;
+            this.showModal('Your Ice Time Allocation', content);
+        } else {
+            const content = `
+                <div class="space-y-4">
+                    <p><strong>Time:</strong> ${calendarInstance.formatEventTime(info.event.start, info.event.end)}</p>
+                    <p><strong>Ice Surface:</strong> ${eventData.ice_surface_name}</p>
+                    <p><strong>Facility:</strong> ${eventData.facility_name}</p>
+                    <p><strong>Program:</strong> ${eventData.program_name}</p>
+                    <p><strong>Status:</strong> <span class="capitalize">${eventStatus}</span></p>
+                    <p class="text-sm text-gray-600">This ice time is allocated to another program.</p>
+                </div>
+            `;
+            this.showModal('Ice Time Allocation', content);
+        }
+    }
+
+    async confirmAllocation(allocationId) {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`/itm/api/allocations-confirm/${allocationId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                this.showToast('Allocation confirmed successfully!', 'success');
+                if (this.dashboardCalendar) {
+                    this.dashboardCalendar.refetchEvents();
+                }
+                this.loadDashboardData();
+                this.closeModal();
+            } else {
+                this.showToast(data.error || 'Failed to confirm allocation', 'error');
+            }
+        } catch (error) {
+            console.error('Error confirming allocation:', error);
+            this.showToast('Network error. Please try again.', 'error');
+        }
+    }
+
+    async declineAllocation(allocationId) {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`/itm/api/allocations-decline/${allocationId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                this.showToast('Allocation declined', 'info');
+                if (this.dashboardCalendar) {
+                    this.dashboardCalendar.refetchEvents();
+                }
+                this.loadDashboardData();
+                this.closeModal();
+            } else {
+                this.showToast(data.error || 'Failed to decline allocation', 'error');
+            }
+        } catch (error) {
+            console.error('Error declining allocation:', error);
+            this.showToast('Network error. Please try again.', 'error');
+        }
     }
 
     async loadDashboardData() {
@@ -661,6 +874,46 @@ class ITMApp {
 
     refreshContent(entity) {
         console.log('Refreshing content for:', entity);
+    }
+
+    showModal(title, content) {
+        const existingModal = document.getElementById('app-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'app-modal';
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-full max-w-md max-h-96 overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium">${title}</h3>
+                    <button onclick="window.app.closeModal()" class="text-gray-400 hover:text-gray-600">
+                        <span class="sr-only">Close</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div>${content}</div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeModal();
+            }
+        });
+    }
+
+    closeModal() {
+        const modal = document.getElementById('app-modal');
+        if (modal) {
+            modal.remove();
+        }
     }
 
     showToast(message, type = 'info') {
