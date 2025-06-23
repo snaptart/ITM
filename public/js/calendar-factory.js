@@ -258,10 +258,10 @@ class CalendarFactory {
             const title = this.buildEventTitle(event);
             
             return {
-                id: event.id || `${event.ice_surface_id}-${event.start_time}`,
+                id: event.id || `${event.allocation_id}-${event.start}`,
                 title: title,
-                start: event.start_time,
-                end: event.end_time,
+                start: event.start,
+                end: event.end,
                 backgroundColor: color,
                 borderColor: color,
                 textColor: this.getTextColor(color),
@@ -278,56 +278,68 @@ class CalendarFactory {
     hasEventPermission(event) {
         const role = this.config.userRole;
         const currentUser = this.config.currentUser;
+        const extendedProps = event.extendedProps || {};
         
         switch (role) {
             case 'system_admin':
                 return true;
             case 'facility_admin':
                 return !currentUser?.facility_ids || 
-                       currentUser.facility_ids.includes(event.facility_id);
+                       currentUser.facility_ids.includes(extendedProps.facility_id);
             case 'program_user':
-                return event.program_id === currentUser?.program_id || 
-                       event.status === 'available';
+                return extendedProps.program_id === currentUser?.program_id || 
+                       extendedProps.status === 'available';
             default:
-                return event.status === 'available';
+                return extendedProps.status === 'available';
         }
     }
 
     getEventColor(event) {
+        // If event already has a color from API, use it
+        if (event.color) {
+            return event.color;
+        }
+        
         const colorMap = {
-            'available': '#e5e7eb',    // gray-200
-            'pending': '#f59e0b',      // amber-500
-            'confirmed': '#10b981',    // emerald-500
-            'declined': '#ef4444',     // red-500
-            'cancelled': '#6b7280'     // gray-500
+            'available': '#9CA3AF',    // gray-400 (matching API)
+            'proposed': '#F59E0B',     // amber-500 (matching API)
+            'confirmed': '#10B981',    // emerald-500 (matching API)
+            'declined': '#EF4444',     // red-500 (matching API)
+            'cancelled': '#EF4444'     // red-500 (matching API)
         };
         
-        return colorMap[event.status] || colorMap['available'];
+        return colorMap[event.extendedProps?.status] || colorMap['available'];
     }
 
     getTextColor(backgroundColor) {
         // Simple logic to determine text color based on background
-        const lightColors = ['#e5e7eb', '#f59e0b'];
+        const lightColors = ['#9CA3AF', '#F59E0B'];
         return lightColors.includes(backgroundColor) ? '#1f2937' : '#ffffff';
     }
 
     buildEventTitle(event) {
-        const role = this.config.userRole;
+        // If the event already has a title from API, use it
+        if (event.title) {
+            return event.title;
+        }
         
-        if (event.status === 'available') {
-            return `Available - ${event.ice_surface_name}`;
+        const role = this.config.userRole;
+        const extendedProps = event.extendedProps || {};
+        
+        if (extendedProps.status === 'available') {
+            return `Available - ${extendedProps.ice_surface_name}`;
         }
         
         switch (role) {
             case 'system_admin':
             case 'facility_admin':
-                return `${event.program_name} - ${event.ice_surface_name}`;
+                return `${extendedProps.program_name} - ${extendedProps.ice_surface_name}`;
             case 'program_user':
-                return event.program_id === this.config.currentUser?.program_id
-                    ? `Your Time - ${event.ice_surface_name}`
-                    : `${event.program_name} - ${event.ice_surface_name}`;
+                return extendedProps.program_id === this.config.currentUser?.program_id
+                    ? `Your Time - ${extendedProps.ice_surface_name}`
+                    : `${extendedProps.program_name} - ${extendedProps.ice_surface_name}`;
             default:
-                return event.ice_surface_name;
+                return extendedProps.ice_surface_name;
         }
     }
 
